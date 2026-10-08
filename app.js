@@ -243,7 +243,7 @@ function tvEmbed(el, widget, cfg, onFail) {
 }
 const tvTheme = () => isDark() ? 'dark' : 'light';
 /* ---------- real-time quote (Micron method): own quote endpoint polled every 15 s while visible; TradingView delayed widget when it is empty or failing ---------- */
-const QUOTE_API = (new URLSearchParams(location.search).get('quoteapi')) || '';  /* set to the LMND Cloudflare Worker /api/quote URL once it exists */
+const QUOTE_API = (new URLSearchParams(location.search).get('quoteapi')) || 'https://micron-dashboard.cashcache.workers.dev/api/quote?symbol=LMND';  /* shared Cloudflare Worker (Robinhood real-time, Nasdaq.com backup) */
 const LQ = {timer: null, fails: 0, ok: false, last: null, tv: false, prev: null, vis: false};
 const usd = v => v == null ? 'n/a' : '$' + fmt(v, 2);
 const sgn = (v, d = 2) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v), d);
@@ -275,7 +275,7 @@ function renderQuote(q) {
   if (reg && q.bid && q.ask) sub += ` · Bid ${usd(q.bid)} / Ask ${usd(q.ask)}`;
   $('#lq-sub').textContent = sub;
   const RH = q.source === 'Robinhood public quote';
-  const venue = m.kind === 'regular' ? (RH ? 'Nasdaq last sale via Robinhood' : q.source) : ((q.ext && q.ext.venue) ? `${q.ext.venue} via Robinhood 24-hour feed` : (RH ? 'Robinhood extended-hours feed' : q.source));
+  const venue = m.kind === 'regular' ? (RH ? 'NYSE last sale via Robinhood' : q.source) : ((q.ext && q.ext.venue) ? `${q.ext.venue} via Robinhood 24-hour feed` : (RH ? 'Robinhood extended-hours feed' : q.source));
   const fresh = q.source === 'Nasdaq.com quote API' && !/real-time/i.test(q.source_note || '') ? 'may be delayed' : 'real-time';
   $('#lq-cap').textContent = (m.time ? `as of ${tET(m.time)} ET (${tSG(m.time)} SGT)` : '') + ` · ${venue} · ${fresh}` + (q.stale ? ' · last good update, retrying' : ' · refreshes every 15 s');
   /* YTD box follows the live regular-session price */
@@ -317,7 +317,7 @@ function hero() {
   $('#hero4').innerHTML = [
     `<div class="hcard live"><div id="lq" class="lq" aria-live="polite" style="display:none"><div class="lq-top"><span class="lq-sess"><i class="lq-dot"></i><span id="lq-sl">Connecting to live quote…</span></span><span class="lq-sym">LMND · NYSE</span></div>
        <div class="lq-row"><span class="lq-k" id="lq-k"></span><span class="lq-px" id="lq-px">—</span><span class="lq-ch" id="lq-ch"></span></div><div class="lq-sub" id="lq-sub"></div><div class="lq-cap" id="lq-cap"></div></div>
-     <div id="tvwrap" class="tvwrap" style="display:none"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND). The real-time box (Nasdaq last sale via Robinhood, refreshed every 15 s) appears when the quote service answers; otherwise this free TradingView widget is shown. It updates automatically but is delayed about 15 minutes (the “D” badge).')}</div><div class="tvq" id="tvq"></div><div class="cap" id="tvqcap" style="padding:0 4px">NYSE: LMND · delayed ~15 min (“D”) · TradingView</div></div></div>`,
+     <div id="tvwrap" class="tvwrap" style="display:none"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND). The real-time box (NYSE last sale via Robinhood, refreshed every 15 s) appears when the quote service answers; otherwise this free TradingView widget is shown. It updates automatically but is delayed about 15 minutes (the “D” badge).')}</div><div class="tvq" id="tvq"></div><div class="cap" id="tvqcap" style="padding:0 4px">NYSE: LMND · delayed ~15 min (“D”) · TradingView</div></div></div>`,
     card(2, 'In-force premium', 'IFP', '$' + fmt(H.ifp / 1000, 2) + 'b', H.ifp_yoy, `$${fmt(H.ifp, 1)}m · ${pct(H.ifp_qoq)} QoQ · year ago $${fmt(H.ifp_prev_year, 1)}m`, 'spIfp'),
     card(3, 'Customers', 'Customers', fmt(H.customers / 1e6, 2) + 'm', H.cust_yoy, `${fmt(H.customers)} · ${pct(H.cust_qoq)} QoQ`, 'spCu'),
     card(4, 'Premium per customer', 'PPC', '$' + fmt(H.ppc), H.ppc_yoy, `${pct(H.ppc_qoq)} QoQ · year ago $${fmt(H.ppc_prev_year)}`, 'spPpc')].join('');
