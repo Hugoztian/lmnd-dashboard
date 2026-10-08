@@ -48,13 +48,13 @@ const termify = label => { const g = gfind(label); return g ? `<span class="term
   const hide = () => { cur = null; tip.classList.remove('on'); };
   document.addEventListener('mouseover', e => { const el = e.target.closest('[data-tip]'); if (el && el !== cur) show(el); else if (!el && cur) hide(); });
   document.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); if (el) show(el); });
-  document.addEventListener('focusout', hide);
-  document.addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) { e.stopPropagation(); cur === el && tip.classList.contains('on') ? hide() : show(el); } else hide(); }, true);
+  document.addEventListener('focusout', e => { if (!e.relatedTarget || !e.relatedTarget.closest('[data-tip]')) hide(); });
+  document.addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) show(el); else hide(); }, true);
   addEventListener('scroll', hide, {passive: true});
 })();
 
 /* ---------------- charts ---------------- */
-const charts = {};
+const charts = {}; window.__charts = charts;
 const growth = (arr, lag) => arr.map((v, i) => (i < lag || v == null || arr[i - lag] == null || arr[i - lag] === 0) ? null : +((v - arr[i - lag]) / Math.abs(arr[i - lag]) * 100).toFixed(1));
 function chart(id, cfg) { const el = document.getElementById(id); if (!el) return null; if (charts[id]) charts[id].destroy(); charts[id] = new Chart(el, cfg); return charts[id]; }
 const zoomOpts = () => ({zoom: {wheel: {enabled: true, modifierKey: 'ctrl'}, pinch: {enabled: true}, mode: 'x'}, pan: {enabled: true, mode: 'x', threshold: 6}, limits: {x: {minRange: 2}}});
@@ -82,7 +82,7 @@ function ccard(o) {
 function wireCard(o) {
   const card = $('#cc-' + o.id); if (!card) return;
   const rb = card.querySelector('.seg[data-k="range"] button.on'); const st = {mode: 'v', range: rb ? rb.dataset.v : null};
-  const showRe = k => { const box = card.querySelector('.reinsboxes'); if (!box) return; const r = D.reins[k]; const ex = box.querySelector(`[data-k="${k}"]`); 
+  const showRe = k => { const box = card.querySelector('.reinsboxes'); if (!box) return; const r = D.reins[k]; const ex = box.querySelector(`.reinsbox[data-k="${k}"]`); 
     box.querySelectorAll('.reinsbox').forEach(b => { if (b !== ex) b.classList.remove('on'); }); if (ex) ex.classList.toggle('on'); };
   const draw = () => {
     const base = o.build(st);
