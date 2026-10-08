@@ -289,7 +289,7 @@ async function pollQuote() {
     const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
     const r = await fetch(QUOTE_API + (QUOTE_API.includes('?') ? '&' : '?') + 't=' + Date.now(), {cache: 'no-store', signal: ctl.signal}); clearTimeout(to);
     const q = await r.json(); if (!q || !q.ok || !q.main) throw new Error('bad quote');
-    LQ.fails = 0; LQ.ok = true; LQ.last = q; tvFallback(false); renderQuote(q);
+    LQ.fails = 0; LQ.ok = true; LQ.last = q; tvFallback(false); renderQuote(q); { const e = document.getElementById('lfstat'); if (e) e.textContent = `Last tick $${Number((q.main || {}).price).toFixed(2)} at ${(q.main || {}).time_et || ''} · ${q.session_label || q.session || ''}`; }
   } catch (e) {
     LQ.fails++;
     if (!LQ.ok || LQ.fails >= 4) tvFallback(true);
@@ -525,13 +525,25 @@ function metricsJump(k, smooth = true) {
 /* ---------------- Sources ---------------- */
 function sources() {
   const sh = sheet('^sources'); const cover = sheet('cover'); const N = D.narrative; const rep = (N.sections.find(s => /^sources/i.test(s.h)) || {paras: []}).paras.filter(p => !p.startsWith('©'));
-  $('#s-sources').innerHTML = `<h2>Sources</h2><div class="xscope">${xallBtns()}
+  const FD = window.FEED || {filings: [], fetched_sgt: 'n/a', status: 'not loaded'};
+  const ft = FD.filings.map(f => `<tr><td><b>${esc(f.form)}</b></td><td>${esc(f.date)}</td><td>${esc(f.report || '')}</td><td style="white-space:normal">${esc(f.desc)}${f.items ? ` <span class="mut">items ${esc(f.items)}</span>` : ''}</td><td><a href="${esc(f.url)}" target="_blank" rel="noopener">doc</a> · <a href="${esc(f.index)}" target="_blank" rel="noopener">index</a></td></tr>`).join('');
+  const lq = LQ.last, lqm = (lq && lq.main) || {};
+  const lqs = lq ? `Last tick $${Number(lqm.price).toFixed(2)} at ${esc(lqm.time_et || '')} · ${esc(lq.session_label || lq.session || '')}` : (LQ.tv ? 'Real-time feed unreachable right now; the TradingView delayed quote is showing instead.' : 'Waiting for the first tick…');
+  $('#s-sources').innerHTML = `<h2>Sources &amp; Live feed</h2>
+   <div class="card"><h3>Live price feed</h3><ul class="lst">
+    <li><b>Price box:</b> NYSE last sale via Robinhood, real-time, refreshed every 15 seconds through <a href="${esc(QUOTE_API)}" target="_blank" rel="noopener">${esc(QUOTE_API.replace(/^https?:\/\//, ''))}</a>. Nasdaq.com is the relay's backup source.</li>
+    <li><b>Backup:</b> if the real-time feed fails, the box switches to TradingView's delayed quote widget.</li>
+    <li><b>Chart:</b> TradingView advanced chart (NYSE:LMND), streamed live in your browser.</li>
+    <li><b>Status:</b> <span id="lfstat">${lqs}</span></li></ul></div>
+   <div class="card" style="margin-top:16px"><h3>Latest SEC filings (CIK ${esc(FD.cik || '1691421')})</h3><div class="mut" style="font-size:12px">The list refreshes each time the dashboard is published · ${FD.filings.length} most recent filings · data.sec.gov submissions API, last fetched ${esc(FD.fetched_sgt)} (status: ${esc(FD.status)}).</div>
+    <div class="tblwrap" style="max-height:420px;overflow:auto"><table class="feedt"><thead><tr><th>Form</th><th>Filed</th><th>Report date</th><th>Description / items</th><th>Link</th></tr></thead><tbody>${ft}</tbody></table></div></div>
+   <h3>Source documents</h3><div class="xscope">${xallBtns()}
    ${details('Workbook sources & links', `<ul class="lst">${(sh ? sh.pre : []).map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`, `${sh ? sh.pre.length : 0} items`, true)}
    ${(sh && sh.tables.length) ? sh.tables.map(t => details(esc(t.title || 'Quarterly shareholder letters (SEC 8-K)'), `<ul class="lst">${[t.columns, ...t.rows.filter(Array.isArray)].map(r => `<li>${r.filter(x => x != null && x !== '').map(x => /^https?:/.test(String(x)) ? `<a href="${esc(x)}" target="_blank" rel="noopener">${esc(x)}</a>` : esc(x)).join(' — ')}</li>`).join('')}</ul>`, `${t.rows.length + 1} links`)).join('') : ''}
    ${details('Report sources', `<ul class="lst">${rep.map(p => `<li>${linkify(p.replace(/^•\s*/, ''))}</li>`).join('')}</ul>`, `${rep.length} items`)}
    ${details('Reinsurance restructuring sources', `<ul class="lst">${D.reins.map(r => `<li><b>${esc(dlong(r.date))} — ${esc(r.title)}:</b> ${esc(r.source)}</li>`).join('')}</ul>`, `${D.reins.length} events`)}
    ${details('Workbook notes & disclaimer', `<ul class="lst">${(cover ? cover.pre : []).filter(p => !/^\d+\.|^Sheets:/.test(p)).map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`)}
-   ${details('Data build', `<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price: TradingView free widget (delayed quote).</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`)}
+   ${details('Data build', `<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price: Robinhood real-time via the quote relay, TradingView delayed quote as backup. SEC filings feed: data.sec.gov, fetched ${esc((window.FEED||{}).fetched_sgt||'n/a')}.</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`)}
    ${details('Metric definitions', `<ul class="lst">${Object.entries(D.glossary).map(([k, v]) => `<li><b>${esc(k)}</b> — ${esc(v)}</li>`).join('')}</ul>`)}</div>`;
 }
 
@@ -704,12 +716,12 @@ function finTab() {
 }
 const TABS = [['overview', 'Overview', overview], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
   ['rollout', 'Product Rollout', rollout, 'rollout'], ['fin', 'Financial Statements', finTab],
-  ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources', sources]]
+  ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources & Live feed', sources]]
   .filter(t => !t[3] || OPT[t[3]]);
 /* short labels keep the nav simple; section headings keep the full names */
-const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', fin: 'Financials', metrics: 'Metrics & Street', insiders: 'Insiders', sources: 'Sources'};
-/* max 8 nav pills: Sources stays a valid route, reached from the footer link */
-const NONAV = new Set(['sources']);
+const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', fin: 'Financials', metrics: 'Metrics & Street', insiders: 'Insiders', sources: 'Sources & Live feed'};
+/* Sources & Live feed is a nav tab (Hugo asked for it, like Micron's) */
+const NONAV = new Set([]);
 /* old links: retired tabs land somewhere sensible */
 const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview'};
 const done = {};
