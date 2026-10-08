@@ -368,7 +368,7 @@ function bsTab() { const b = n => ser(n, 'bs');
     {id: 'bRe', title: 'Reinsurance balances & unearned premium ($m)', tip: 'Quota share', reins: 1, unit: '$m', build: () => ({labels: QL, datasets: [{type: 'line', label: 'Unearned premium', data: b('unearned'), borderColor: C.acc}, {type: 'line', label: 'Prepaid reinsurance premium', data: b('prepaid'), borderColor: C.g}, {type: 'line', label: 'Reinsurance recoverable', data: b('recoverable'), borderColor: C.b}, {type: 'line', label: 'Unpaid loss & LAE', data: b('unpaid'), borderColor: C.r}]})},
     {id: 'bFin', title: 'Synthetic Agents borrowings ($m) & shares outstanding (m)', tip: 'Synthetic Agents', unit: '$m', build: () => ({labels: QL, datasets: [{type: 'bar', label: 'Borrowings under financing', data: b('borrowings'), backgroundColor: C.acc}, {type: 'line', label: 'Shares outstanding (m)', data: b('shares outstanding'), borderColor: C.g, yAxisID: 'y1', unit: 'm'}], scales: {y1: {position: 'right', grid: {drawOnChartArea: false}}}})}]); }
 function cfTab() { const c = n => ser(n, 'cf');
-  stmt('cf', 'cf', 'Cash Flow', [
+  stmt('cf', 'cf', 'Cash Flow Statement', [
     {id: 'cFcf', title: 'Operating cash flow, capex & free cash flow ($m)', tip: 'Adj. FCF', unit: '$m', build: () => ({labels: QL, datasets: [{type: 'bar', label: 'Cash from operations', data: c('operating activities'), backgroundColor: C.acc}, {type: 'bar', label: 'Capex', data: c('capital expend').map(v => -v), backgroundColor: C.r}, {type: 'line', label: 'Free cash flow', data: c('^free cash flow'), borderColor: C.g}, {type: 'line', label: 'Adjusted FCF', data: c('^adjusted free'), borderColor: C.b}]})},
     {id: 'cGs', title: 'Growth spend vs Synthetic Agents balance ($m)', tip: 'Synthetic Agents', growth: 1, unit: '$m', build: () => ({labels: QL, datasets: [{type: 'bar', label: 'Growth spend (quarter)', data: c('growth spend'), backgroundColor: C.acc}, {type: 'line', label: 'Synthetic Agents balance (EOP)', data: c('synthetic'), borderColor: C.g, yAxisID: 'y1'}], scales: {y1: {position: 'right', grid: {drawOnChartArea: false}}}})},
     {id: 'cCi', title: 'Cash & investments, end of period ($m)', growth: 1, unit: '$m', build: () => ({type: 'line', labels: QL, datasets: [{label: 'Cash & investments', data: c('cash & investments'), borderColor: C.acc, fill: true, backgroundColor: C.acc3}]})}]); }
@@ -620,13 +620,31 @@ function picksTab() {
   $$('#s-picks [data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = document.getElementById(a.dataset.go); t && t.scrollIntoView({behavior: 'smooth', block: 'start'}); });
 }
 /* ---------------- router ---------------- */
+/* ---------------- Financial Statements (sub-tabs: BS, IS, CF) ---------------- */
+const FINSUB = [['bs', 'Balance Sheet', () => bsTab()], ['is', 'Income Statement', () => isTab()], ['cf', 'Cash Flow Statement', () => cfTab()]];
+const finDone = {};
+function finShow(id) {
+  if (!FINSUB.some(f => f[0] === id)) id = 'bs';
+  $$('#finsub button').forEach(b => b.classList.toggle('on', b.dataset.v === id));
+  FINSUB.forEach(([k]) => { const e = $('#s-' + k); if (e) e.hidden = k !== id; });
+  if (!finDone[id]) { finDone[id] = 1; try { FINSUB.find(f => f[0] === id)[2](); } catch (e) { console.error('render ' + id, e); $('#s-' + id).insertAdjacentHTML('beforeend', `<div class="tvfail">This statement could not render: ${esc(e.message)}</div>`); } }
+}
+function finTab() {
+  for (const k in finDone) delete finDone[k];
+  $('#s-fin').innerHTML = `<div class="chips" id="finsub" role="tablist" style="margin-bottom:12px">${FINSUB.map(([k, l]) => `<button class="btn" role="tab" data-v="${k}">${esc(l)}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
+  $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
+  finShow((location.hash.split('/')[1] || 'bs'));
+}
 const TABS = [['overview', 'Overview', overview], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
-  ['rollout', 'Product Rollout', rollout, 'rollout'], ['opmetrics', 'Operating Metrics', opmetrics, 'opmetrics'], ['picks', 'Metric Picks', picksTab, 'picks'], ['is', 'Income Statement', isTab], ['bs', 'Balance Sheet', bsTab], ['cf', 'Cash Flow', cfTab],
+  ['rollout', 'Product Rollout', rollout, 'rollout'], ['opmetrics', 'Operating Metrics', opmetrics, 'opmetrics'], ['picks', 'Metric Picks', picksTab, 'picks'], ['fin', 'Financial Statements', finTab],
   ['guidance', 'Guidance vs Actual', guidance], ['street', 'Wall Street', street], ['insiders', 'Insiders', insiders], ['valuation', 'Valuation & Peers', valuation], ['risks', 'Risks / Bull–Bear', risks], ['sources', 'Sources', sources]]
   .filter(t => !t[3] || OPT[t[3]]);
 const done = {};
 function route() {
-  let id = (location.hash || '#overview').slice(1).split('/')[0]; if (!TABS.some(t => t[0] === id)) id = 'overview';
+  let id = (location.hash || '#overview').slice(1).split('/')[0];
+  if (['is', 'bs', 'cf'].includes(id)) { location.replace('#fin/' + id); return; }
+  if (!TABS.some(t => t[0] === id)) id = 'overview';
+  if (id === 'fin' && done.fin) finShow(location.hash.split('/')[1] || 'bs');
   $$('#nav a').forEach(a => { const on = a.dataset.t === id; a.classList.toggle('on', on); if (on) a.scrollIntoView({block: 'nearest', inline: 'center'}); });
   $$('main section').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
   const t = TABS.find(t => t[0] === id);
