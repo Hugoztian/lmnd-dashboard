@@ -122,7 +122,7 @@ const BAD = /loss ratio|glr|loss & lae|expense|marketing|development|administrat
 function cellFmt(v, col) {
   if (v == null || v === '') return ['', ''];
   if (typeof v === 'number') { const h = String(col || ''); let s;
-    if (/%/.test(h) && Math.abs(v) <= 100 && !Number.isInteger(v)) s = fmt(v, 2);
+    if (/%/.test(h) && !Number.isInteger(v)) s = fmt(v, 1);
     else if (Number.isInteger(v)) s = Math.abs(v) >= 10000 ? fmt(v, 0) : String(v);
     else s = fmt(v, Math.abs(v) < 10 ? 2 : 1);
     return [s, v < 0 ? 'neg-num' : '']; }
@@ -450,6 +450,7 @@ function sources() {
   const sh = sheet('^sources'); const cover = sheet('cover'); const N = D.narrative; const rep = (N.sections.find(s => /^sources/i.test(s.h)) || {paras: []}).paras.filter(p => !p.startsWith('©'));
   $('#s-sources').innerHTML = `<h2>Sources</h2><div class="xscope">${xallBtns()}
    ${details('Workbook sources & links', `<ul class="lst">${(sh ? sh.pre : []).map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`, `${sh ? sh.pre.length : 0} items`, true)}
+   ${(sh && sh.tables.length) ? sh.tables.map(t => details(esc(t.title || 'Quarterly shareholder letters (SEC 8-K)'), `<ul class="lst">${[t.columns, ...t.rows.filter(Array.isArray)].map(r => `<li>${r.filter(x => x != null && x !== '').map(x => /^https?:/.test(String(x)) ? `<a href="${esc(x)}" target="_blank" rel="noopener">${esc(x)}</a>` : esc(x)).join(' — ')}</li>`).join('')}</ul>`, `${t.rows.length + 1} links`)).join('') : ''}
    ${details('Report sources', `<ul class="lst">${rep.map(p => `<li>${linkify(p.replace(/^•\s*/, ''))}</li>`).join('')}</ul>`, `${rep.length} items`)}
    ${details('Reinsurance restructuring sources', `<ul class="lst">${D.reins.map(r => `<li><b>${esc(dlong(r.date))} — ${esc(r.title)}:</b> ${esc(r.source)}</li>`).join('')}</ul>`, `${D.reins.length} events`)}
    ${details('Workbook notes & disclaimer', `<ul class="lst">${(cover ? cover.pre : []).filter(p => !/^\d+\.|^Sheets:/.test(p)).map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`)}
@@ -462,71 +463,126 @@ const OPT = D.optional || {};
 const optSheet = k => OPT[k] ? D.sheets[OPT[k].sheet] : null;
 const pickKey = (obj, inc, exc) => Object.keys(obj || {}).find(k => inc.test(k) && !(exc && exc.test(k)));
 function allTables(sh, pfx, o = {}) { return sh.tables.map((t, i) => tableBlock(t, Object.assign({id: pfx + i, pre: i === 0 ? sh.pre : [], wrap: o.wrap}, o))).join(''); }
+const QRX = /^Q([1-4])\s?'?\s?(\d{2}|\d{4})$/;
+const qnorm = s => { const m = String(s || '').trim().match(QRX); if (!m) return String(s || ''); let y = +m[2]; if (y < 100) y += 2000; return `Q${m[1]} ${y}`; };
+const qkey = s => { const m = qnorm(s).match(/Q(\d) (\d{4})/); return m ? +m[2] * 10 + +m[1] : 0; };
+const reinsAt = q => D.reins.find(r => r.quarter === qnorm(q));
+const cessionRow = () => { const o = OPT.opmetrics && OPT.opmetrics.qs; if (!o) return null; const k = pickKey(o.text, /reinsurance|cession|quota/i); return k ? {q: o.quarters, v: o.text[k], label: k} : null; };
+function rangeSlice(L, st) { const n = st.range === '8' ? 8 : st.range === '12' ? 12 : L.length; return Math.max(0, L.length - n); }
 function history() {
-  const sh = optSheet('history'), qs = OPT.history.qs; const el = $('#s-history');
-  if (!qs) { el.innerHTML = `<h2>IFP & Revenue History</h2>${allTables(sh, 'tH')}`; return; }
+  const H = OPT.history, qs = H.qs, el = $('#s-history');
   const L = qs.quarters, Sx = qs.series;
-  const kI = pickKey(Sx, /in-?force|ifp/i, /yoy|growth|%|qoq/i), kR = pickKey(Sx, /revenue/i, /yoy|growth|%|qoq/i), kG = pickKey(Sx, /gross earned|gep/i, /yoy|growth|%|qoq/i);
+  const kI = pickKey(Sx, /in-?force|ifp/i, /yoy|growth|%|qoq|per |-/i), kR = pickKey(Sx, /revenue/i, /yoy|growth|%|qoq/i), kG = pickKey(Sx, /gross earned|gep/i, /yoy|growth|%|qoq/i);
   const kIy = pickKey(Sx, /(in-?force|ifp).*(yoy|growth)|(yoy|growth).*(in-?force|ifp)/i), kRy = pickKey(Sx, /revenue.*(yoy|growth)|(yoy|growth).*revenue/i);
-  const yI = kIy ? Sx[kIy] : (kI ? growth(Sx[kI], 4) : []), yR = kRy ? Sx[kRy] : (kR ? growth(Sx[kR], 4) : []);
-  const latest = L.length - 1;
-  const notesTxt = Object.entries(qs.text || {}).filter(([k]) => /reins|note|comment/i.test(k));
-  el.innerHTML = `<h2>IFP & Revenue History <span class="mut" style="font-size:16px;font-weight:500">· ${esc(L[0])} – ${esc(L[latest])}</span></h2>
+  const yI = kIy ? Sx[kIy] : growth(Sx[kI], 4), yR = kRy ? Sx[kRy] : growth(Sx[kR], 4);
+  const n = L.length - 1, CR = cessionRow();
+  const ces = q => { if (!CR) return ''; const i = CR.q.indexOf(q); return i >= 0 ? (CR.v[i] || '') : ''; };
+  const evs = D.reins.filter(r => L.includes(r.quarter));
+  const rows = L.map((q, i) => [q, Sx[kI][i], yI[i], Sx[kR][i], yR[i], ...(CR ? [ces(q)] : []), reinsAt(q) ? '⟲ ' + reinsAt(q).title : '']);
+  const hNote = (D.sheets[H.sheet].tables[0] || {notes: []}).notes;
+  el.innerHTML = `<h2>IFP & Revenue History <span class="mut" style="font-size:16px;font-weight:500">· ${esc(L[0])} – ${esc(L[n])}, every quarter</span></h2>
    <div class="grid g4" style="margin-bottom:16px">
-    ${kI ? `<div class="card kpi"><div class="l">IFP ${esc(L[latest])} ${info('IFP')}</div><div class="v">${money(Sx[kI][latest])}</div><div class="s"><span class="${pcls(yI[latest])}">${pct(yI[latest])}</span> YoY · ${esc(L[0])}: ${money(Sx[kI][0])}</div></div>` : ''}
-    ${kR ? `<div class="card kpi"><div class="l">Revenue ${esc(L[latest])} ${info('Revenue')}</div><div class="v">${money(Sx[kR][latest])}</div><div class="s"><span class="${pcls(yR[latest])}">${pct(yR[latest])}</span> YoY · ${esc(L[0])}: ${money(Sx[kR][0])}</div></div>` : ''}
-    ${kI && L.length > 4 ? `<div class="card kpi"><div class="l">IFP multiple since ${esc(L[0])}</div><div class="v">${fmt(Sx[kI][latest] / Sx[kI][0], 1)}×</div><div class="s">${L.length} quarters</div></div>` : ''}
-    <div class="card kpi"><div class="l">Reinsurance events ${info('Quota share')}</div><div class="v">${D.reins.filter(r => L.includes(r.quarter)).length}</div><div class="s">${D.reins.filter(r => L.includes(r.quarter)).map(r => esc(r.quarter)).join(' · ')} — click the pink markers</div></div></div>
-   ${charts2([{id: 'hAbs', title: 'In-force premium vs revenue ($m)', tip: 'IFP', growth: 1, reins: 1, ranges: [['8', '8Q'], ['2020', '2020+'], ['all', 'All']]}, {id: 'hYoy', title: 'YoY growth: IFP vs revenue (%)', tip: 'Revenue', reins: 1, ranges: [['8', '8Q'], ['2020', '2020+'], ['all', 'All']]}])}
-   ${notesTxt.length ? `<div class="xscope">${notesTxt.map(([k, v]) => details(esc(k), `<ul class="lst">${v.map((x, i) => x ? `<li><b>${esc(L[i])}:</b> ${esc(x)}</li>` : '').join('')}</ul>`)).join('')}</div>` : ''}
-   ${allTables(sh, 'tH')}`;
-  const sl = (arr, st) => { let s = 0; if (st.range === '8') s = Math.max(0, L.length - 8); else if (st.range === '2020') s = Math.max(0, L.findIndex(q => /20(2\d)/.test(q) && +q.slice(-4) >= 2020)); return arr.slice(s); };
-  wireCard({id: 'hAbs', reins: 1, unit: '$m', build: st => ({labels: sl(L, st), datasets: [kI && {type: 'line', label: 'In-force premium', data: sl(Sx[kI], st), borderColor: C.acc, yAxisID: 'y'}, kR && {type: 'bar', label: 'Revenue', data: sl(Sx[kR], st), backgroundColor: C.g, yAxisID: 'y1'}, kG && {type: 'bar', label: 'Gross earned premium', data: sl(Sx[kG], st), backgroundColor: C.acc2, yAxisID: 'y1'}].filter(Boolean),
-    scales: {y: {title: {display: true, text: 'IFP $m'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Quarterly $m'}}}})});
-  wireCard({id: 'hYoy', reins: 1, unit: '%', build: st => ({type: 'line', labels: sl(L, st), datasets: [{label: 'IFP YoY %', data: sl(yI, st), borderColor: C.acc, keep: 1, unit: '%'}, {label: 'Revenue YoY %', data: sl(yR, st), borderColor: C.g, keep: 1, unit: '%'}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
-  ['hAbs', 'hYoy'].forEach(id => { const c = charts[id]; if (c) { c.options.plugins.tooltip.callbacks.label = x => `${x.dataset.label}: ${x.raw == null ? 'n/a' : (x.dataset.unit === '%' || /%/.test(x.dataset.label) ? (/YoY/.test(x.dataset.label) ? pct(x.raw) : fmt(x.raw, 1) + '%') : money(x.raw))}`; c.update('none'); } });
+    <div class="card kpi"><div class="l">In-force premium, ${esc(L[n])} ${info('IFP')}</div><div class="v">${money(Sx[kI][n])}</div><div class="s"><span class="${pcls(yI[n])}">${pct(yI[n])}</span> YoY · ${esc(L[0])}: ${money(Sx[kI][0])} (${fmt(Sx[kI][n] / Sx[kI][0], 1)}×)</div></div>
+    <div class="card kpi"><div class="l">Revenue, ${esc(L[n])} ${info('Revenue')}</div><div class="v">${money(Sx[kR][n])}</div><div class="s"><span class="${pcls(yR[n])}">${pct(yR[n])}</span> YoY · ${esc(L[0])}: ${money(Sx[kR][0])} (${fmt(Sx[kR][n] / Sx[kR][0], 1)}×)</div></div>
+    <div class="card kpi"><div class="l">Gap: revenue YoY − IFP YoY, ${esc(L[n])} ${info('Quota share')}</div><div class="v">${yR[n] != null && yI[n] != null ? (yR[n] - yI[n] >= 0 ? '+' : '−') + fmt(Math.abs(yR[n] - yI[n]), 1) + 'pp' : 'n/a'}</div><div class="s">Revenue outgrows IFP while the quota-share cession falls</div></div>
+    <div class="card kpi"><div class="l">Reinsurance restructurings ${info('Quota share')}</div><div class="v">${evs.length}</div><div class="s">${evs.map(r => esc(r.quarter)).join(' · ')}. Click a pink marker or note below.</div></div></div>
+   <div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">The one-time reinsurance restructurings</h3><div class="grid g2">${evs.map(r => `<div><div class="pill acc">${esc(dlong(r.date))} · ${esc(r.quarter)}</div><h4 style="margin:6px 0 4px">${esc(r.title)}</h4><div style="font-size:13px;line-height:1.55">${esc(r.detail)}</div><div class="mut" style="font-size:11.5px;margin-top:4px">Source: ${esc(r.source)}</div></div>`).join('')}</div>${hNote.length ? `<ul class="notes">${hNote.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
+   ${charts2([{id: 'hAbs', title: 'In-force premium vs quarterly revenue ($m)', tip: 'IFP', growth: 1, reins: 1, ranges: [['8', '8Q'], ['12', '3Y'], ['all', '2020+ (all)']]}, {id: 'hYoy', title: 'YoY growth: IFP vs revenue (%)', tip: 'Revenue', reins: 1, ranges: [['8', '8Q'], ['12', '3Y'], ['all', '2020+ (all)']]}])}
+   ${tableBlock({title: 'Quarter by quarter', columns: ['Quarter', 'IFP ($m)', 'IFP YoY %', 'Revenue ($m)', 'Revenue YoY %', ...(CR ? ['Quota share cession'] : []), 'Reinsurance restructuring'], rows}, {id: 'tHist', terms: false, maxh: 720, notes: [`Source: ${H.sheet} sheet${CR ? ' (IFP, revenue) and Operating Metrics sheet (cession)' : ''}. Highlighted rows = reinsurance restructuring quarters.`]})}`;
+  $$('#tHist tbody tr').forEach(r => { if (reinsAt(r.cells[0].textContent)) { r.style.boxShadow = 'inset 3px 0 0 var(--acc)'; [...r.cells].forEach(c => c.style.background = 'var(--accsoft)'); } });
+  wireCard({id: 'hAbs', reins: 1, unit: '$m', build: st => { const s0 = rangeSlice(L, st); return {labels: L.slice(s0), datasets: [{type: 'line', label: 'In-force premium (annualised)', data: Sx[kI].slice(s0), borderColor: C.acc, yAxisID: 'y', order: 1}, {type: 'bar', label: 'Revenue (quarter)', data: Sx[kR].slice(s0), backgroundColor: C.g, yAxisID: 'y1', order: 2}, kG && {type: 'bar', label: 'Gross earned premium', data: Sx[kG].slice(s0), backgroundColor: C.acc2, yAxisID: 'y1', order: 3}].filter(Boolean),
+    scales: {y: {title: {display: true, text: 'IFP $m'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: 'Quarterly $m'}}}}; }});
+  wireCard({id: 'hYoy', reins: 1, unit: '%', build: st => { const s0 = rangeSlice(L, st); return {type: 'line', labels: L.slice(s0), datasets: [{label: 'IFP YoY %', data: yI.slice(s0), borderColor: C.acc, keep: 1, unit: '%'}, {label: 'Revenue YoY %', data: yR.slice(s0), borderColor: C.g, keep: 1, unit: '%'}], scales: {y: {ticks: {callback: v => v + '%'}}}}; }});
+  ['hAbs', 'hYoy'].forEach(id => { const c = charts[id]; if (c) { c.options.plugins.tooltip.callbacks.label = x => `${x.dataset.label}: ${x.raw == null ? 'n/a' : /YoY/.test(x.dataset.label) ? pct(x.raw) : money(x.raw)}`; c.options.plugins.tooltip.callbacks.afterBody = it => { const q = it[0] && it[0].label; const c2 = ces(q); const r = reinsAt(q); return [c2 ? 'Quota share: ' + c2 : '', r ? '⟲ ' + r.title : ''].filter(Boolean); }; c.update('none'); } });
 }
 function highlights() {
-  const sh = optSheet('highlights'); const el = $('#s-highlights'); const items = [];
-  sh.tables.forEach(t => t.rows.filter(Array.isArray).forEach(r => { const qi = r.findIndex(c => /^Q[1-4]\s?'?\s?\d{2,4}$|^(FY)?\s?\d{4}\s?Q[1-4]$/i.test(String(c || '').trim())); if (qi < 0) return;
-    items.push({q: String(r[qi]), parts: t.columns.map((c, i) => [c, r[i]]).filter(([c, v], i) => i !== qi && v != null && String(v).trim())}); }));
-  items.sort((a, b) => { const k = s => { const m = s.match(/Q([1-4])\s?'?\s?(\d{2,4})/); if (!m) return 0; let y = +m[2]; if (y < 100) y += 2000; return y * 10 + +m[1]; }; return k(b.q) - k(a.q); });
-  el.innerHTML = `<h2>Quarterly Highlights <span class="mut" style="font-size:16px;font-weight:500">· management commentary by quarter</span></h2>
+  const sh = optSheet('highlights'); const el = $('#s-highlights'); const t = sh.tables[0]; const ci = re => t.columns.findIndex(c => re.test(c));
+  const iQ = ci(/quarter/i) < 0 ? 0 : ci(/quarter/i), iTxt = ci(/highlight|commentary|comment/i), iDt = ci(/date/i);
+  const num = re => ci(re);
+  const iI = num(/^ifp \(|in-?force.*\(\$/i), iIy = num(/ifp yoy/i), iR = num(/^revenue \(/i), iRy = num(/revenue yoy/i);
+  const items = t.rows.filter(Array.isArray).map(r => ({q: qnorm(r[iQ]), r})).sort((a, b) => qkey(b.q) - qkey(a.q));
+  const bullets = s => { const parts = String(s || '').split(/\n|(?:^|\s)•\s/).map(x => x.replace(/^•\s*/, '').trim()).filter(Boolean); return `<ul class="lst">${parts.map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`; };
+  const CH = ['Reinsurance', 'Pet', 'Car', 'Europe', 'AI', 'Metromile', 'EBITDA', 'Retention'];
+  el.innerHTML = `<h2>Quarterly Highlights <span class="mut" style="font-size:16px;font-weight:500">· management commentary, ${esc(items[items.length - 1].q)} – ${esc(items[0].q)}</span></h2>
+   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
    <div class="tbar"><input type="search" id="hlq" placeholder="Search commentary (e.g. pet, car, reinsurance)…" aria-label="Search highlights"><span class="tcount" id="hln"></span></div>
-   <div class="xscope" id="hlwrap">${xallBtns()}${items.map((it, i) => details(esc(it.q), it.parts.map(([c, v]) => `<p><b>${esc(c)}:</b> ${linkify(String(v))}</p>`).join(''), esc(String((it.parts.find(p => typeof p[1] === 'string' && p[1].length > 20) || ['', ''])[1]).slice(0, 90)) + '…', i === 0)).join('')}</div>
-   <h3>Table view</h3>${allTables(sh, 'tHl', {wrap: true})}`;
-  const n = $('#hln'); const upd = () => { const q = $('#hlq').value.trim().toLowerCase(); let v = 0; $$('#hlwrap details.x').forEach(d => { const hit = !q || d.innerText.toLowerCase().includes(q); d.hidden = !hit; if (hit) v++; if (q && hit) d.open = true; }); n.textContent = `${v} of ${items.length} quarters`; };
-  $('#hlq').addEventListener('input', upd); upd();
+   <div class="chips" id="hlchips">${CH.map(c => `<button class="btn" data-v="${c}">${c}</button>`).join('')}</div>
+   <div class="xscope" id="hlwrap">${xallBtns()}${items.map((it, k) => { const r = it.r; const re = reinsAt(it.q);
+     const sm = [iDt >= 0 && r[iDt] ? 'letter ' + r[iDt] : '', iI >= 0 && r[iI] != null ? `IFP ${money(r[iI])}${iIy >= 0 && r[iIy] != null ? ' (' + pct(r[iIy], 0) + ')' : ''}` : '', iR >= 0 && r[iR] != null ? `revenue ${money(r[iR])}${iRy >= 0 && r[iRy] != null ? ' (' + pct(r[iRy], 0) + ')' : ''}` : ''].filter(Boolean).join(' · ');
+     return details(`${esc(it.q)}${re ? ' <span class="pill acc">⟲ reinsurance</span>' : ''}`, (re ? `<div class="reinsbox on"><h4>${esc(re.title)}</h4>${esc(re.detail)}</div>` : '') + bullets(r[iTxt]), esc(sm), k === 0); }).join('')}</div>
+   ${(t.notes || []).length ? `<ul class="notes">${t.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+   <h3>Table view</h3>${tableBlock(t, {id: 'tHl', wrap: true, terms: false, maxh: 600})}`;
+  const upd = () => { const q = $('#hlq').value.trim().toLowerCase(); let v = 0; $$('#hlwrap details.x').forEach(d => { const hit = !q || d.innerText.toLowerCase().includes(q) || d.querySelector('.xb').textContent.toLowerCase().includes(q); d.hidden = !hit; if (hit) v++; if (q && hit) d.open = true; }); $('#hln').textContent = `${v} of ${items.length} quarters`;
+    $$('#hlchips button').forEach(b => b.classList.toggle('on', b.dataset.v.toLowerCase() === q)); };
+  $('#hlq').addEventListener('input', upd); $$('#hlchips button').forEach(b => b.onclick = () => { const i = $('#hlq'); i.value = i.value.toLowerCase() === b.dataset.v.toLowerCase() ? '' : b.dataset.v; upd(); }); upd();
 }
+const PROD = [['Pet', /\bpet|chewy/i], ['Car', /\bcar\b|metromile|autonomous|tesla|fsd/i], ['Life', /\blife\b/i], ['Home & renters', /renter|homeowner|contents|building|home/i], ['Financing', /synthetic|financ|general catalyst/i], ['Footprint', /footprint|states/i]];
+const GEO = [['Europe', /germany|netherlands|france|\buk\b|europe|\beu\b/i], ['US', /\bus\b|u\.s\.|illinois|tennessee|texas|florida|colorado|indiana|pennsylvania|new york|states|metromile|chewy|tesla|car\b/i]];
 function rollout() {
   const sh = optSheet('rollout'); const el = $('#s-rollout');
-  const t = sh.tables.find(t => t.columns.some(c => /date|quarter|when|launch|year/i.test(c))) || sh.tables[0];
+  const t = sh.tables.find(t => t.columns.some(c => /date|quarter|when|period/i.test(c))) || sh.tables[0];
   const ci = re => t.columns.findIndex(c => re.test(c));
-  const iD = ci(/date|quarter|when|launch|year|period/i), iP = ci(/product|line/i), iG = ci(/geo|market|country|region|state|where/i), iE = ci(/event|milestone|title|what/i), iX = ci(/detail|desc|note|comment|impact|source/i);
-  const rows = t.rows.filter(Array.isArray).map((r, k) => ({k, d: iD >= 0 ? String(r[iD] ?? '') : '', p: iP >= 0 ? String(r[iP] ?? '') : '', g: iG >= 0 ? String(r[iG] ?? '') : '', e: iE >= 0 ? String(r[iE] ?? '') : String(r.find((c, i) => i !== iD && typeof c === 'string') || ''), x: t.columns.map((c, i) => [c, r[i]]).filter(([c, v], i) => v != null && i !== iD && i !== iE)})).sort((a, b) => String(a.d).localeCompare(String(b.d)));
-  const uniq = a => [...new Set(a.filter(Boolean))].sort();
+  const iD = ci(/date|period|when|quarter/i), iP = ci(/product|line/i), iG = ci(/geo|market|country|region/i), iE = ci(/event|milestone|title|what/i), iL = ci(/letter date/i);
+  const cls = (txt, map, dflt) => { for (const [k, re] of map) if (re.test(txt)) return k; return dflt; };
+  const rows = t.rows.filter(Array.isArray).map((r, k) => { const all = t.columns.map((c, i) => String(r[i] ?? '')).join(' ');
+    const pg = iP >= 0 ? String(r[iP] ?? '') : '';
+    return {k, d: iD >= 0 ? String(r[iD] ?? '') : '', name: pg, p: iP >= 0 && iP !== iG ? pg : cls(pg + ' ' + (iE >= 0 ? r[iE] : ''), PROD, 'Other'), g: iG >= 0 && iG !== iP ? String(r[iG] ?? '') : cls(pg + ' ' + (iE >= 0 ? r[iE] : ''), GEO, 'US'),
+      e: iE >= 0 ? String(r[iE] ?? '') : all, letter: iL >= 0 ? String(r[iL] ?? '') : '', x: t.columns.map((c, i) => [c, r[i]]).filter(([c, v], i) => v != null && v !== '' && i !== iE && !/^#$/.test(c))}; });
+  const uniq = a => [...new Set(a.filter(Boolean))];
   const Ps = uniq(rows.map(r => r.p)), Gs = uniq(rows.map(r => r.g));
-  el.innerHTML = `<h2>Product Rollout <span class="mut" style="font-size:16px;font-weight:500">· timeline</span></h2>
-   ${Ps.length ? `<div class="mut" style="font-size:12px">Product line</div><div class="chips" id="roP"><button class="btn on" data-v="">All</button>${Ps.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : ''}
-   ${Gs.length ? `<div class="mut" style="font-size:12px">Geography</div><div class="chips" id="roG"><button class="btn on" data-v="">All</button>${Gs.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)}</button>`).join('')}</div>` : ''}
-   <div class="grid g2"><div class="card"><h3 style="margin-top:0">Timeline <span class="mut" style="font-size:12px;font-weight:400" id="ron"></span></h3><div class="mut" style="font-size:12px;margin-bottom:8px">Click an item for details.</div><div class="tl" id="rotl">${rows.map(r => `<div class="tli" data-p="${esc(r.p)}" data-g="${esc(r.g)}" tabindex="0"><div class="w">${esc(r.d)}${r.p ? ` · <span class="pill acc">${esc(r.p)}</span>` : ''}${r.g ? ` <span class="pill other">${esc(r.g)}</span>` : ''}</div><div class="p">${esc(r.e)}</div><div class="d">${r.x.map(([c, v]) => `<div><b>${esc(c)}:</b> ${linkify(String(v))}</div>`).join('')}</div></div>`).join('')}</div></div>
-   ${ccard({id: 'roC', title: 'Launches per year by product line', h: 340})}</div>
-   ${allTables(sh, 'tRo', {wrap: true})}`;
-  const st = {p: '', g: ''}; const apply = () => { let v = 0; $$('#rotl .tli').forEach(x => { const ok = (!st.p || x.dataset.p === st.p) && (!st.g || x.dataset.g === st.g); x.hidden = !ok; if (ok) v++; }); $('#ron').textContent = `· ${v} of ${rows.length}`; };
+  el.innerHTML = `<h2>Product Rollout <span class="mut" style="font-size:16px;font-weight:500">· ${rows.length} milestones</span></h2>
+   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
+   <div class="mut" style="font-size:12px">Product line</div><div class="chips" id="roP"><button class="btn on" data-v="">All</button>${Ps.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)} <span class="mut">${rows.filter(r => r.p === p).length}</span></button>`).join('')}</div>
+   <div class="mut" style="font-size:12px">Geography</div><div class="chips" id="roG"><button class="btn on" data-v="">All</button>${Gs.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)} <span class="mut">${rows.filter(r => r.g === p).length}</span></button>`).join('')}</div>
+   <div class="grid g2"><div class="card"><h3 style="margin-top:0">Timeline <span class="mut" style="font-size:12px;font-weight:400" id="ron"></span></h3><div class="mut" style="font-size:12px;margin-bottom:8px">Click or tap an item for the source letter and notes. <button class="btn" id="roAll">Expand all</button></div><div class="tl" id="rotl">${rows.map(r => `<div class="tli" data-p="${esc(r.p)}" data-g="${esc(r.g)}" tabindex="0" role="button" aria-expanded="false"><div class="w">${esc(r.d)} · <span class="pill acc">${esc(r.p)}</span> <span class="pill other">${esc(r.g)}</span></div><div class="p">${esc(r.name)}${r.name && r.e ? ': ' : ''}<span style="font-weight:400">${esc(r.e)}</span></div><div class="d">${r.x.map(([c, v]) => `<div><b>${esc(c)}:</b> ${linkify(String(v))}</div>`).join('')}</div></div>`).join('')}</div></div>
+   <div>${ccard({id: 'roC', title: 'Milestones per year by product line', h: 340})}<div class="card" style="margin-top:16px"><h3 style="margin-top:0">Rollout by product line</h3>${Ps.map(p => `<div class="cat"><div class="when">${esc(p)}</div><div style="flex:1;font-size:13px">${rows.filter(r => r.p === p).map(r => esc(r.d.replace(/\s*\(.*\)/, ''))).join(' → ')}</div></div>`).join('')}</div></div></div>
+   ${tableBlock(t, {id: 'tRo', wrap: true, terms: false, maxh: 600})}`;
+  const st = {p: '', g: ''}; const apply = () => { let v = 0; $$('#rotl .tli').forEach(x => { const ok = (!st.p || x.dataset.p === st.p) && (!st.g || x.dataset.g === st.g); x.hidden = !ok; if (ok) v++; }); $('#ron').textContent = `· showing ${v} of ${rows.length}`; };
   [['#roP', 'p'], ['#roG', 'g']].forEach(([s, k]) => $$(s + ' button').forEach(b => b.onclick = () => { $$(s + ' button').forEach(x => x.classList.toggle('on', x === b)); st[k] = b.dataset.v; apply(); }));
-  $$('#rotl .tli').forEach(x => { const tg = () => x.classList.toggle('open'); x.onclick = tg; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tg(); } }; }); apply();
-  const yr = r => (r.d.match(/(20\d{2})/) || [])[1] || (r.d.match(/'(\d{2})/) ? '20' + r.d.match(/'(\d{2})/)[1] : '');
-  const Ys = uniq(rows.map(yr)); const pal = [C.acc, C.g, C.acc2, C.b, C.p, C.y, C.r, C.t];
-  wireCard({id: 'roC', build: () => ({labels: Ys, stacked: true, datasets: (Ps.length ? Ps : ['Launches']).map((p, i) => ({type: 'bar', label: p, data: Ys.map(y => rows.filter(r => yr(r) === y && (!Ps.length || r.p === p)).length), backgroundColor: pal[i % pal.length]})), scales: {x: {stacked: true}, y: {stacked: true, ticks: {precision: 0}}}})});
+  $$('#rotl .tli').forEach(x => { const tg = () => { x.classList.toggle('open'); x.setAttribute('aria-expanded', x.classList.contains('open')); }; x.onclick = e => { if (!e.target.closest('a')) tg(); }; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tg(); } }; });
+  $('#roAll').onclick = e => { e.stopPropagation(); const open = !$$('#rotl .tli').every(x => x.classList.contains('open')); $$('#rotl .tli').forEach(x => x.classList.toggle('open', open)); $('#roAll').textContent = open ? 'Collapse all' : 'Expand all'; };
+  apply();
+  const yr = r => { const m = r.d.match(/(20\d{2})/); if (m) return m[1]; const q = r.d.match(/Q[1-4]'(\d{2})/); if (q) return '20' + q[1]; const l = r.letter.match(/(20\d{2})/); return l ? l[1] : ''; };
+  const Ys = uniq(rows.map(yr)).sort(); const pal = [C.acc, C.g, C.acc2, C.b, C.p, C.y, C.r, C.t];
+  wireCard({id: 'roC', build: () => ({labels: Ys, stacked: true, datasets: Ps.map((p, i) => ({type: 'bar', label: p, data: Ys.map(y => rows.filter(r => yr(r) === y && r.p === p).length), backgroundColor: pal[i % pal.length]})), scales: {x: {stacked: true}, y: {stacked: true, ticks: {precision: 0}}}})});
+  charts.roC.options.plugins.tooltip.callbacks.label = c => c.raw ? `${c.dataset.label}: ${c.raw} milestone${c.raw > 1 ? 's' : ''}` : null; charts.roC.update('none');
 }
+const PICKMAP = [[/lae/i, /^lae ratio/i], [/in-?force|ifp/i, /^in-?force premium/i], [/gross loss ratio/i, /^gross loss ratio \(/i], [/gross profit/i, /adj\. gross profit \/ gep|gross profit margin/i], [/ebitda/i, /^adj\. ebitda/i], [/fcf|cash/i, /^cash & investments/i], [/growth spend/i, /^growth spend/i], [/retention|adr/i, /annual dollar retention/i], [/product mix|segment/i, /^ifp - pet/i]];
 function opmetrics() {
-  const sh = optSheet('opmetrics'), qs = OPT.opmetrics.qs; const el = $('#s-opmetrics');
-  const cards = qs ? Object.entries(qs.series).filter(([k, v]) => v.filter(x => x != null).length >= 2) : [];
-  el.innerHTML = `<h2>Operating Metrics <span class="mut" style="font-size:16px;font-weight:500">· retention and recommended DD metrics</span></h2>
-   ${cards.length ? `<div class="grid g4" style="margin-bottom:16px">${cards.map(([k, v], i) => { const nn = v.map((x, j) => [x, j]).filter(x => x[0] != null); const [lv, lj] = nn[nn.length - 1]; const pv = nn.length > 1 ? nn[nn.length - 2][0] : null; const g = gfind(k);
-      return `<div class="card kpi"><div class="l">${esc(k)} ${g ? info(g[0]) : ''}</div><div class="v">${fmt(lv, Math.abs(lv) < 100 && !Number.isInteger(lv) ? 1 : 0)}</div><div class="s">${esc(qs.quarters[lj])}${pv != null ? ` · prior ${fmt(pv, Math.abs(pv) < 100 && !Number.isInteger(pv) ? 1 : 0)}` : ''}</div><div class="spark" style="height:44px"><canvas id="om${i}"></canvas></div></div>`; }).join('')}</div>` : ''}
-   ${allTables(sh, 'tOm', {wrap: true})}`;
-  cards.forEach(([k, v], i) => spark('om' + i, v, C.acc, qs.quarters));
+  const sh = optSheet('opmetrics'), qs = OPT.opmetrics.qs; const el = $('#s-opmetrics'); const L = qs.quarters, Sx = qs.series, SEC = qs.sections || {};
+  const P = OPT.picks ? D.sheets[OPT.picks.sheet] : null; const pt = P ? P.tables[0] : null; const pc = re => pt ? pt.columns.findIndex(c => re.test(c)) : -1;
+  const picks = pt ? pt.rows.filter(Array.isArray).map(r => ({name: String(r[pc(/^metric/i)] || ''), why: r[pc(/why/i)], latest: r[pc(/latest/i)], watch: r[pc(/trend|watch/i)], chart: r[pc(/chart/i)]})) : [];
+  const findS = re => Object.keys(Sx).find(k => re.test(k));
+  const numKeys = Object.keys(Sx).filter(k => Sx[k].filter(v => v != null).length >= 2);
+  const secs = [...new Set(numKeys.map(k => SEC[k] || 'Metrics'))];
+  const lastOf = k => { const v = Sx[k]; for (let i = v.length - 1; i >= 0; i--) if (v[i] != null) return [v[i], i]; return [null, -1]; };
+  const prevOf = (k, i) => { const v = Sx[k]; for (let j = i - 1; j >= 0; j--) if (v[j] != null) return [v[j], j]; return [null, -1]; };
+  const fv = (k, v) => v == null ? 'n/a' : /\(%\)|%/.test(k) ? fmt(v, Number.isInteger(v) ? 0 : 1) + (/pts|pp/.test(k) ? '' : '%') : /\(\$m\)/.test(k) ? money(v) : /\(\$\)/.test(k) ? '$' + fmt(v) : /\(m\)/.test(k) ? fmt(v, 2) + 'm' : Math.abs(v) >= 1e5 ? fmt(v / 1e6, 2) + 'm' : fmt(v, Number.isInteger(v) ? 0 : 1);
+  const txtKeys = Object.keys(qs.text || {}).filter(k => (qs.text[k] || []).some(Boolean));
+  const ret = findS(/annual dollar retention/i) || numKeys[0];
+  el.innerHTML = `<h2>Operating Metrics <span class="mut" style="font-size:16px;font-weight:500">· ${esc(L[0])} – ${esc(L[L.length - 1])}</span></h2>
+   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
+   ${picks.length ? `<h3>Recommended due-diligence metrics <span class="mut" style="font-size:13px;font-weight:400">· ${picks.length} picks from the ${esc(OPT.picks.sheet)} sheet; tap a card for why it matters and what to watch</span></h3>
+   ${P.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${P.pre.map(esc).join('<br>')}</div>` : ''}
+   <div class="grid g3" style="margin-bottom:16px">${picks.map((p, i) => { const m = PICKMAP.find(([a]) => a.test(p.name)); const sk = m ? findS(m[1]) : null;
+     return `<div class="card kpi pick" data-sk="${esc(sk || '')}" style="cursor:pointer"><div class="l">${esc(p.name)}</div><div class="v" style="font-size:19px">${esc(p.latest || '')}</div><div class="s">${esc(p.chart || '')}${sk ? ` · <a href="#opmetrics" data-load="${esc(sk)}">chart it ↓</a>` : ''}</div>${sk ? `<div class="spark"><canvas id="pk${i}"></canvas></div>` : ''}<div class="pk-d" hidden style="margin-top:8px;font-size:12.5px;line-height:1.5"><p style="margin:4px 0"><b>Why it matters:</b> ${esc(p.why || '')}</p><p style="margin:4px 0"><b>What to watch:</b> ${esc(p.watch || '')}</p></div></div>`; }).join('')}</div>` : ''}
+   <div class="card ccard" id="cc-omX" style="margin-bottom:16px"><div class="chead"><div class="ct">Metric explorer <select id="omSel" aria-label="Choose metric" style="margin-left:6px;max-width:260px">${secs.map(s => `<optgroup label="${esc(s)}">${numKeys.filter(k => (SEC[k] || 'Metrics') === s).map(k => `<option ${k === ret ? 'selected' : ''}>${esc(k)}</option>`).join('')}</optgroup>`).join('')}</select></div>
+     <div class="ctools"><div class="seg" data-k="mode"><button data-v="v" class="on">Value</button><button data-v="q">QoQ %</button><button data-v="y">YoY %</button></div><div class="seg" data-k="range"><button data-v="8">8Q</button><button data-v="12">3Y</button><button data-v="all" class="on">2020+ (all)</button></div><button class="ib" data-z="in" aria-label="Zoom in">+</button><button class="ib" data-z="out" aria-label="Zoom out">−</button><button class="btn" data-z="reset">Reset</button></div></div>
+     <div class="chartbox" style="height:330px"><canvas id="omX"></canvas></div><div class="chint">Pick any metric, or click a card below. Hover or tap for values · drag to pan · pinch or Ctrl+scroll to zoom</div><div class="reinsboxes"></div></div>
+   ${secs.map(s => `<h3>${esc(s)}</h3><div class="grid g4">${numKeys.filter(k => (SEC[k] || 'Metrics') === s).map(k => { const [v, i] = lastOf(k); const [pv, pj] = prevOf(k, i); const g = gfind(k); const n = Sx[k].filter(x => x != null).length;
+     return `<div class="card kpi omc" data-k="${esc(k)}" style="cursor:pointer" title="Click to load into the metric explorer"><div class="l">${esc(k)} ${g ? info(g[0]) : ''}</div><div class="v">${fv(k, v)}</div><div class="s">${esc(L[i] || '')}${pv != null ? ` · prior ${fv(k, pv)} (${esc(L[pj])})` : ''} · ${n} qtrs</div><div class="spark"><canvas id="oms${numKeys.indexOf(k)}"></canvas></div></div>`; }).join('')}</div>`).join('')}
+   ${txtKeys.length ? `<h3>Disclosed qualitative metrics</h3><div class="xscope">${xallBtns()}${txtKeys.map(k => details(esc(k), `<ul class="lst">${qs.text[k].map((v, i) => v ? `<li><b>${esc(L[i])}:</b> ${linkify(String(v))}</li>` : '').join('')}</ul>`, `${qs.text[k].filter(Boolean).length} quarters`)).join('')}</div>` : ''}
+   <h3>All operating metrics</h3>${tableBlock(sh.tables[0], {id: 'tOm', maxh: 640, notes: []})}
+   ${pt ? `<h3>Metric picks (table)</h3>${tableBlock(pt, {id: 'tPk', wrap: true, terms: false})}` : ''}`;
+  numKeys.forEach((k, i) => { const v = Sx[k]; const s0 = v.findIndex(x => x != null); spark('oms' + i, v.slice(s0), C.acc, L.slice(s0)); });
+  picks.forEach((p, i) => { const m = PICKMAP.find(([a]) => a.test(p.name)); const sk = m ? findS(m[1]) : null; if (sk) { const v = Sx[sk]; const s0 = v.findIndex(x => x != null); spark('pk' + i, v.slice(s0), C.acc, L.slice(s0)); } });
+  const st = {k: ret};
+  wireCard({id: 'omX', reins: 1, build: s => { const v = Sx[st.k]; const s0 = Math.max(rangeSlice(L, s), v.findIndex(x => x != null)); const u = /%/.test(st.k) ? '%' : /\(\$m\)/.test(st.k) ? '$m' : /\(\$\)/.test(st.k) ? '$' : '';
+    return {type: 'line', labels: L.slice(s0), datasets: [{label: st.k, data: v.slice(s0), borderColor: C.acc, backgroundColor: C.acc3, fill: true, spanGaps: true, unit: u}]}; }});
+  const load = k => { st.k = k; $('#omSel').value = k; const b = $('#cc-omX .seg[data-k="mode"] button.on'); (b || $('#cc-omX .seg button')).click(); $('#cc-omX').scrollIntoView({behavior: 'smooth', block: 'center'}); };
+  $('#omSel').onchange = () => load($('#omSel').value);
+  $$('.omc').forEach(c => c.onclick = e => { if (e.target.closest('[data-tip]')) return; load(c.dataset.k); });
+  $$('.pick').forEach(c => c.onclick = e => { const a = e.target.closest('[data-load]'); if (a) { e.preventDefault(); load(a.dataset.load); return; } if (e.target.closest('[data-tip]')) return; const d = c.querySelector('.pk-d'); d.hidden = !d.hidden; });
 }
 /* ---------------- router ---------------- */
 const TABS = [['overview', 'Overview', overview], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
