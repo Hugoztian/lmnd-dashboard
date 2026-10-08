@@ -637,7 +637,7 @@ function route() {
   $$('main section').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
   const t = TABS.find(t => t[0] === id);
   if (!done[id]) { try { t[2](); } catch (e) { console.error('render ' + id, e); $('#s-' + id).insertAdjacentHTML('beforeend', `<div class="tvfail">This tab could not render: ${esc(e.message)}</div>`); } done[id] = 1; wireTables($('#s-' + id)); wireXall($('#s-' + id)); }
-  document.title = `${t[1]} · Lemonade (LMND) Due Diligence · © Hugo Tian`;
+  document.title = `${t[1]} · Lemonade (LMND) Dashboard · © Hugo Tian`;
 }
 function buildNav() {
   $('#nav').innerHTML = TABS.map(([id, l]) => `<a href="#${id}" data-t="${id}">${esc(l)}</a>`).join('');
