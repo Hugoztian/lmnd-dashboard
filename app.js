@@ -241,12 +241,15 @@ function liveQuote() {
   tvEmbed(el, 'single-quote', {symbol: TV_SYM, width: '100%', isTransparent: true, colorTheme: isDark() ? 'dark' : 'light', locale: 'en'}, why => {
     el.style.height = 'auto'; el.innerHTML = `<div class="tvfail" title="${esc(why)}">Live quote could not load in this browser.</div><div style="font-size:24px;font-weight:700">$${fmt(P.close, 2)}</div><div class="mut" style="font-size:11px">Last close ${dlong(P.close_date)} (build-time)</div>`; });
 }
+/* trim leading quarters where every series is empty */
+const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.forEach(d => { const j = (d.data || []).findIndex(v => v != null && !isNaN(v)); if (j >= 0 && j < i0) i0 = j; }); if (i0 < n) i0 = Math.max(i0, n - 8); /* keep at most the latest 8 quarters */
+  if (i0 > 0 && i0 < n) { cfg.labels = cfg.labels.slice(i0); cfg.datasets.forEach(d => { d.data = (d.data || []).slice(i0); }); } return cfg; };
 /* ---------------- hero ---------------- */
 function hero() {
   const H = D.hero, P = D.price, asof = `${H.quarter} · as of ${H.period_end_long}`;
   $('#updated').innerHTML = `Last updated <b>${esc(D.meta.built_sgt)}</b> · Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · Market data: close ${esc(dlong(P.close_date))}, live price via TradingView`;
   const ifp = ser('in-?force premium', 'kpi'), cu = ser('^customers', 'kpi'), pp = ser('premium per customer', 'kpi');
-  const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><span class="asof">${esc(asof)}</span><div class="spark"><canvas id="${id}"></canvas></div></div>`;
+  const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><span class="asof">${esc(asof)}</span></div>`;
   $('#hero4').innerHTML = [
     `<div class="hcard live"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND) quote from the free TradingView widget. It updates automatically but is delayed (Cboe/NYSE delayed feed); free widgets cannot show real-time US stock data.')}</div><div class="tvq" id="tvq"></div><div class="cap" style="padding:0 4px">NYSE: LMND · auto-updating · delayed quote (TradingView)</div></div>`,
     card(2, 'In-force premium', 'IFP', '$' + fmt(H.ifp / 1000, 2) + 'b', H.ifp_yoy, `$${fmt(H.ifp, 1)}m · ${pct(H.ifp_qoq)} QoQ · year ago $${fmt(H.ifp_prev_year, 1)}m`, 'spIfp'),
@@ -259,7 +262,6 @@ function hero() {
     `<div class="mini"><div class="l">Market cap / EV ${info('Price/IFP')}</div><div class="v">$${fmt(P.mcap_b, 2)}b / $${fmt(P.ev_b, 2)}b</div><div class="s">Close ${esc(dlong(P.close_date))} · 52-wk $${fmt(P.lo52, 2)}–$${fmt(P.hi52, 2)}</div></div>`,
     `<div class="mini"><div class="l">Next earnings (Q3 2026)</div><div class="v">~${esc(dlong(D.meta.next_earnings))}</div><div class="s">${dd(D.meta.next_earnings)} · company guide on Guidance tab</div></div>`,
     `<div class="mini"><div class="l">Investor Day</div><div class="v">${esc(dlong(D.meta.investor_day))}</div><div class="s">${dd(D.meta.investor_day)} · New York</div></div>`].join('');
-  spark('spIfp', ifp); spark('spCu', cu.map(v => v / 1e6)); spark('spPpc', pp);
   liveQuote();
 }
 /* ---------------- overview ---------------- */
@@ -306,9 +308,8 @@ function overview() {
     <div class="card"><h3>Key numbers (with dates)</h3>${tableBlock({columns: ['Metric', 'Value', 'As of'], rows: keyRows}, {id: 'tKey', csvname: 'Key numbers', terms: true, wrap: true, cls: 'keyt'})}</div>
     <div class="card"><h3>Catalysts & dates</h3>${cats}<ul class="notes"><li>Q3 2026 company guide: ${esc(((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^Q3 2026 guide \(Q2'26 letter\):\s*/, ''))}</li></ul></div></div>
   <div class="grid g3" style="margin-bottom:16px">${exKeys.map(k => `<div class="card"><h3>${esc(k)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(ex[k])}</div></div>`).join('')}</div>
-  <div class="grid g2" style="margin-bottom:16px">
-    <div class="card"><h3 style="margin-top:0">LMND live chart <span class="mut" style="font-size:12px;font-weight:400">· ${TV_SYM} via TradingView · delayed</span></h3><div class="tvchart" id="tvchart"></div></div>
-    ${ccard({id: 'ovPx', title: 'LMND daily close (build-time, Yahoo)', ranges: [['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD'], ['all', '1Y']], h: 400})}</div>
+  <div style="margin-bottom:16px">
+    <div class="card"><h3 style="margin-top:0">LMND live chart <span class="mut" style="font-size:12px;font-weight:400">· ${TV_SYM} via TradingView · delayed</span></h3><div class="tvchart" id="tvchart"></div></div></div>
   <div class="xscope">${xallBtns()}
   ${details('Business overview', paras(sec('business').paras), 'model, Giveback, reinsurance, growth financing')}
   ${details('Latest quarter, guidance & path to profit', paras([...sec('latest quarter').paras, ...sec('latest quarter').subs.flatMap(x => x.paras)]), H.quarter)}
@@ -320,12 +321,7 @@ function overview() {
   kpiCards(LI);
   tvEmbed($('#tvchart'), 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: isDark() ? 'dark' : 'light', style: '1', locale: 'en',
     backgroundColor: isDark() ? 'rgba(28,28,30,1)' : 'rgba(255,255,255,1)', gridColor: isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', allow_symbol_change: false, hide_side_toolbar: true, calendar: false, support_host: 'https://www.tradingview.com'},
-    why => { $('#tvchart').innerHTML = `<div class="tvfail">Live chart could not load (${esc(why)}). The interactive daily-close chart next to it uses build-time data.</div>`; $('#tvchart').style.height = 'auto'; });
-  wireCard({id: 'ovPx', ranges: 1, unit: '$', build: st => { const last = ph.length ? ph[ph.length - 1][0] : ''; const cut = st.range === '1m' ? 22 : st.range === '3m' ? 64 : 0; let h = ph;
-    if (st.range === 'ytd') h = ph.filter(x => x[0] >= last.slice(0, 4) + '-01-01'); else if (cut) h = ph.slice(-cut);
-    return {type: 'line', labels: h.map(x => x[0]), datasets: [{label: 'LMND close ($)', data: h.map(x => x[1]), borderColor: C.acc, backgroundColor: C.acc3, fill: true, pointRadius: 0, unit: '$', keep: true}],
-      scales: {x: {ticks: {maxTicksLimit: 7, maxRotation: 0}}, y: {ticks: {callback: v => '$' + v}}}}; }});
-  charts.ovPx && (charts.ovPx.options.plugins.tooltip.callbacks.label = c => `LMND close: $${fmt(c.raw, 2)}`);
+    why => { $('#tvchart').innerHTML = `<div class="tvfail">Live chart could not load (${esc(why)}).</div>`; $('#tvchart').style.height = 'auto'; });
 }
 /* ---------------- Insurance KPIs ---------------- */
 const QL = Q.map(qshort);
@@ -347,9 +343,9 @@ function kpis() {
     return {labels: QL, stacked: true, datasets: [{type: 'bar', label: 'Net earned premium (kept)', data: ne, backgroundColor: C.acc, stack: 's'}, {type: 'bar', label: 'Ceded earned premium (to reinsurers)', data: ce, backgroundColor: C.r, stack: 's'},
       {type: 'line', label: 'Ceded share of GEP (%)', data: ce.map((v, j) => +(v / ge[j] * 100).toFixed(1)), borderColor: C.g, yAxisID: 'y1', unit: '%', keep: true}],
       scales: {y: {stacked: true}, y1: {position: 'right', min: 0, max: 100, grid: {drawOnChartArea: false}, ticks: {callback: v => v + '%'}}}}; }});
-  wireCard({id: 'kMix', unit: '$m', build: () => ({labels: QL, stacked: true, datasets: [['homeowners', 'Homeowners MPL', C.acc], ['^pet$', 'Pet', C.acc2], ['^car$', 'Car', C.g], ['europe \\(', 'Europe', C.b], ['^other$', 'Other', C.r]].map(([p, l, c]) => ({type: 'bar', label: l, data: k(p), backgroundColor: c}))})});
-  wireCard({id: 'kGlrP', unit: '%', build: () => ({type: 'line', labels: QL, datasets: [['homeowners mpl glr', 'Homeowners', C.acc], ['pet glr', 'Pet', C.p], ['car glr', 'Car', C.g], ['europe glr', 'Europe', C.b]].map(([p, l, c]) => ({label: l, data: k(p), borderColor: c, spanGaps: true})), scales: {y: {ticks: {callback: v => v + '%'}}}})});
-  wireCard({id: 'kComp', unit: 'pp', build: () => ({labels: QL, datasets: [['cat excl', 'CAT excl. PPD', C.acc], ['lae excl', 'LAE excl. PPD', C.g], ['prior period', 'Prior-period development', C.b]].map(([p, l, c]) => ({type: 'bar', label: l, data: k(p), backgroundColor: c}))})});
+  wireCard({id: 'kMix', unit: '$m', build: () => trimQ({labels: QL, stacked: true, datasets: [['homeowners', 'Homeowners MPL', C.acc], ['^pet$', 'Pet', C.acc2], ['^car$', 'Car', C.g], ['europe \\(', 'Europe', C.b], ['^other$', 'Other', C.r]].map(([p, l, c]) => ({type: 'bar', label: l, data: k(p), backgroundColor: c}))})});
+  wireCard({id: 'kGlrP', unit: '%', build: () => trimQ({type: 'line', labels: QL, datasets: [['homeowners mpl glr', 'Homeowners', C.acc], ['pet glr', 'Pet', C.p], ['car glr', 'Car', C.g], ['europe glr', 'Europe', C.b]].map(([p, l, c]) => ({label: l, data: k(p), borderColor: c, spanGaps: true})), scales: {y: {ticks: {callback: v => v + '%'}}}})});
+  wireCard({id: 'kComp', unit: 'pp', build: () => trimQ({labels: QL, datasets: [['cat excl', 'CAT excl. PPD', C.acc], ['lae excl', 'LAE excl. PPD', C.g], ['prior period', 'Prior-period development', C.b]].map(([p, l, c]) => ({type: 'bar', label: l, data: k(p), backgroundColor: c}))})});
   wireCard({id: 'kAdr', unit: '%', build: () => ({type: 'line', labels: QL, datasets: [{label: 'Annual dollar retention', data: k('annual dollar retention'), borderColor: C.acc, fill: false}], scales: {y: {min: 70, max: 100, ticks: {callback: v => v + '%'}}}})});
 }
 /* ---------------- statements ---------------- */
