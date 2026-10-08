@@ -15,7 +15,7 @@
 <script src="vendor/hammer.min.js"></script>
 <script src="vendor/chartjs-plugin-zoom.min.js"></script>
 <script src="vendor/chartjs-plugin-annotation.min.js"></script>
-<script src="data.js?v=1791473009"></script>
+<script src="data.js?v=1791473626"></script>
 <style>
 /* Minimal Apple-style system: neutral surfaces, whitespace over lines, Lemonade pink as the only accent */
 :root{--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -63,10 +63,28 @@ nav a.on{color:var(--acc);opacity:1;font-weight:600;background:var(--accsoft)}
 .hcard .asof{margin-top:auto;padding-top:12px;font-size:11.5px;color:var(--mut2);white-space:nowrap}
 .hcard.live{padding:16px 14px 14px}
 .hcard.live .tvq{height:84px;overflow:hidden;margin:auto -4px;background:var(--panel);border-radius:12px}
+.hcard.live .snap{padding:2px 4px}.hcard.live .snapv{display:block;font-size:28px;font-weight:600;letter-spacing:-.03em}.hcard.live .snaps{font-size:11px;color:var(--mut2)}
 .hcard.live .cap{font-size:11.5px;color:var(--mut2);line-height:1.4;padding-top:6px}
 /* TradingView iframes: match the embedded document's scheme so dark mode is never painted as an opaque white panel */
 .tradingview-widget-container{background:transparent;color-scheme:light}
 .tradingview-widget-container iframe{color-scheme:light;background:transparent}
+.hcard.live .tvwrap{flex-direction:column;flex:1}
+.lq{padding:4px 6px 2px}
+.lq-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--mut);font-weight:500}
+.lq-sess{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.lq-dot{width:6px;height:6px;border-radius:50%;background:var(--mut2);display:inline-block}
+.lq.reg .lq-dot{background:var(--acc);animation:pulse 2.4s infinite}
+.lq-sym{white-space:nowrap;color:var(--mut2);font-size:12px}
+.lq-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;margin:10px 0 2px}
+.lq-k{font-size:13px;font-weight:600;color:var(--txt)}.lq-k:empty{display:none}
+.lq-px{font-size:40px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;border-radius:8px;padding:0 2px;margin-left:-2px;white-space:nowrap;line-height:1.05}
+.lq-px.up{animation:lqup 1.2s}.lq-px.dn{animation:lqdn 1.2s}
+@keyframes lqup{0%{background:color-mix(in srgb,var(--pos) 22%,transparent)}100%{background:transparent}}
+@keyframes lqdn{0%{background:color-mix(in srgb,var(--neg) 22%,transparent)}100%{background:transparent}}
+.lq-ch{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lq-sub{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums;margin-top:4px}
+.lq-cap{font-size:11px;color:var(--mut2);margin-top:6px;line-height:1.4}
+.lq.stale .lq-px{opacity:.6}
 .livedot{width:6px;height:6px;border-radius:50%;background:var(--acc);display:inline-block;animation:pulse 2.4s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,0,131,.4)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .h2row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:16px}
@@ -130,9 +148,8 @@ details.fn .fnn{font-size:10.5px;background:var(--seg);border-radius:980px;paddi
 .subtabs::-webkit-scrollbar{display:none}
 .subtabs button{background:transparent;color:var(--txt);border:0;border-radius:8px;padding:6px 16px;cursor:pointer;font-weight:500;font-size:13px;white-space:nowrap}
 .subtabs button.on{background:var(--segon);color:var(--acc);box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.subtabs.jump{position:sticky;top:60px;z-index:5;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
-.sblk{scroll-margin-top:110px}
-.sblk:first-of-type h2.bh{margin-top:28px}
+.sblk{scroll-margin-top:80px}
+.sblk+.sblk{margin-top:56px}
 /* tables: whitespace instead of rules */
 .tblwrap{overflow:auto;background:var(--panel);border-radius:18px;box-shadow:var(--shadow);max-height:640px;-webkit-overflow-scrolling:touch}
 .card .tblwrap{box-shadow:none;border-radius:0;background:transparent}
@@ -208,13 +225,14 @@ select{font-size:13px;background:var(--seg);border:0;color:var(--txt);border-rad
 .tvfail{color:var(--warn);font-size:12px;padding:6px 0}
 footer{color:var(--mut2);font-size:11.5px;line-height:1.7;padding:28px 32px 44px;max-width:1200px;margin:0 auto}
 footer b{color:var(--mut);font-weight:600}
+footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 @media (max-width:1100px){nav{justify-content:flex-start}}
 @media (max-width:1000px){.h4{grid-template-columns:repeat(2,minmax(0,1fr))}.h2row{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px}.mini:nth-child(3){border-left:0;padding-left:22px}.brand .bn{display:none}.bar{gap:10px}}
 @media (max-width:700px){.bar{padding:0 14px;height:48px}.wm{width:68px}.hero{padding:28px 16px 4px}.hero h1{font-size:32px}.hero .sub{font-size:12px}
  .h4{gap:10px;margin-top:22px}.hcard{padding:14px 14px 12px;border-radius:18px}.hcard .v{font-size:28px}.hcard .l{font-size:12px}.hcard .ch{font-size:12px}.hcard .s{font-size:11px}.hcard .asof{font-size:10.5px;white-space:normal}
  .hcard.live{padding:10px 8px 8px}.hcard.live .tvq{height:92px}.h2row{gap:10px}.mini{padding:2px 12px}.mini:first-child,.mini:nth-child(3){padding-left:12px}.mini .v{font-size:16px}
  main{padding:16px 16px 40px}h2{font-size:30px;margin:24px 0 20px}h2.bh{font-size:24px;margin-top:40px}h3{font-size:17px;margin-top:32px}.card{padding:16px;border-radius:18px}.lead{font-size:16px}
- td:first-child,th:first-child{min-width:140px}th,td{padding:8px 10px}.tvchart{height:360px}.chartbox{height:250px}.subtabs.jump{top:54px}
+ td:first-child,th:first-child{min-width:140px}th,td{padding:8px 10px}.tvchart{height:360px}.chartbox{height:250px}
  .cat .when{width:92px}footer{padding:22px 16px 34px}.themebtn .tl2{display:none}}
 </style>
 </head>
@@ -228,6 +246,6 @@ footer b{color:var(--mut);font-weight:600}
 <main id="main"></main>
 <footer id="foot"></footer>
 <div id="tip" role="tooltip"></div>
-<script src="app.js?v=1791473009"></script>
+<script src="app.js?v=1791473626"></script>
 </body>
 </html>

@@ -241,10 +241,69 @@ function tvEmbed(el, widget, cfg, onFail) {
   sc.onerror = () => fail('script blocked or offline'); box.appendChild(sc); el.appendChild(box);
   setTimeout(() => { if (!el.querySelector('iframe')) fail('widget did not load within 12 s'); }, 12000);
 }
+const tvTheme = () => isDark() ? 'dark' : 'light';
+/* ---------- real-time quote (Micron method): own quote endpoint polled every 15 s while visible; TradingView delayed widget when it is empty or failing ---------- */
+const QUOTE_API = (new URLSearchParams(location.search).get('quoteapi')) || '';  /* set to the LMND Cloudflare Worker /api/quote URL once it exists */
+const LQ = {timer: null, fails: 0, ok: false, last: null, tv: false, prev: null, vis: false};
+const usd = v => v == null ? 'n/a' : '$' + fmt(v, 2);
+const sgn = (v, d = 2) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v), d);
+const mdy = d => { if (!d) return ''; const t = new Date(String(d).slice(0, 10) + 'T12:00:00Z'); return t.toLocaleDateString('en-US', {month: 'short', day: 'numeric', timeZone: 'UTC'}); };
+const tET = ms => new Date(ms).toLocaleTimeString('en-US', {timeZone: 'America/New_York', hour12: false});
+const tSG = ms => new Date(ms).toLocaleTimeString('en-GB', {timeZone: 'Asia/Singapore', hour12: false});
+function tvFallback(on) {
+  const w = $('#tvwrap'), lq = $('#lq'); if (!w || !lq) return;
+  w.style.display = on ? 'flex' : 'none'; lq.style.display = on ? 'none' : 'block';
+  if (on && !LQ.tv) { LQ.tv = true; const el = $('#tvq'); const P = D.price;
+    tvEmbed(el, 'single-quote', {symbol: TV_SYM, width: '100%', isTransparent: true, colorTheme: tvTheme(), locale: 'en'}, why => {
+      el.style.height = 'auto'; el.innerHTML = `<div class="tvfail" title="${esc(why)}">Live quote unavailable</div><div class="snap"><span class="snapv">$${fmt(P.close, 2)}</span><span class="snaps">Build-time snapshot · close ${esc(dlong(P.close_date))} · not live</span></div>`;
+      const c = $('#tvqcap'); if (c) c.textContent = 'Static snapshot (not live)'; }); }
+}
+function renderQuote(q) {
+  const m = q.main || {}, ref = q.ref_close || {}, reg = q.session === 'regular';
+  const box = $('#lq'); if (!box) return; box.classList.toggle('reg', reg); box.classList.toggle('stale', !!q.stale);
+  $('#lq-sl').textContent = reg ? 'Live · regular session' : (q.session === 'closed' ? 'Market closed' : `${q.session_label || q.session} session`) + (q.session === 'overnight' ? ' (8 PM–4 AM ET)' : '');
+  $('#lq-k').textContent = m.kind === 'regular' ? '' : (m.label || '');
+  const px = $('#lq-px'); px.textContent = m.price != null ? usd(m.price) : 'n/a';
+  if (LQ.prev != null && m.price != null && m.price !== LQ.prev) { px.classList.remove('up', 'dn'); void px.offsetWidth; px.classList.add(m.price > LQ.prev ? 'up' : 'dn'); }
+  LQ.prev = m.price;
+  const ch = $('#lq-ch');
+  if (m.change != null) { ch.className = 'lq-ch ' + (m.change >= 0 ? 'pos' : 'neg'); ch.textContent = `${sgn(m.change)} (${sgn(m.pct)}%)${reg ? '' : ' vs close'}`; }
+  else { ch.className = 'lq-ch mut'; ch.textContent = ''; }
+  const pc = (reg ? q.prev_close : ref) || {};
+  let sub = `Prev close ${usd(pc.price)}${pc.date ? ` · ${mdy(pc.date)}` : ''}`;
+  if (!reg && q.ext && m.kind === 'close') sub += ` · ${q.ext.label} ${usd(q.ext.price)} (${sgn(q.ext.pct)}%)`;
+  if (reg && q.bid && q.ask) sub += ` · Bid ${usd(q.bid)} / Ask ${usd(q.ask)}`;
+  $('#lq-sub').textContent = sub;
+  const RH = q.source === 'Robinhood public quote';
+  const venue = m.kind === 'regular' ? (RH ? 'Nasdaq last sale via Robinhood' : q.source) : ((q.ext && q.ext.venue) ? `${q.ext.venue} via Robinhood 24-hour feed` : (RH ? 'Robinhood extended-hours feed' : q.source));
+  const fresh = q.source === 'Nasdaq.com quote API' && !/real-time/i.test(q.source_note || '') ? 'may be delayed' : 'real-time';
+  $('#lq-cap').textContent = (m.time ? `as of ${tET(m.time)} ET (${tSG(m.time)} SGT)` : '') + ` · ${venue} · ${fresh}` + (q.stale ? ' · last good update, retrying' : ' · refreshes every 15 s');
+  /* YTD box follows the live regular-session price */
+  const Y = D.price.ytd; const rp = q.regular && q.regular.price;
+  if (Y && Y.base && rp) { const p2 = (rp / Y.base - 1) * 100; const v = $('#ytd-v'); if (v) { v.className = 'v ' + pcls(p2); v.textContent = pct(p2); }
+    const s1 = $('#ytd-s1'); if (s1) s1.textContent = `${usd(rp)} (${reg ? 'live' : 'regular close'}${q.regular.time ? ' ' + tET(q.regular.time).slice(0, 5) + ' ET' : ''}) vs ${usd(Y.base)} close ${dlong(Y.base_date)} · updated ${tET(Date.now())} ET`; }
+}
+async function pollQuote() {
+  if (document.visibilityState === 'hidden') return;
+  try {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
+    const r = await fetch(QUOTE_API + (QUOTE_API.includes('?') ? '&' : '?') + 't=' + Date.now(), {cache: 'no-store', signal: ctl.signal}); clearTimeout(to);
+    const q = await r.json(); if (!q || !q.ok || !q.main) throw new Error('bad quote');
+    LQ.fails = 0; LQ.ok = true; LQ.last = q; tvFallback(false); renderQuote(q);
+  } catch (e) {
+    LQ.fails++;
+    if (!LQ.ok || LQ.fails >= 4) tvFallback(true);
+    else if (LQ.last) renderQuote({...LQ.last, stale: true});
+  }
+}
 function liveQuote() {
-  const el = $('#tvq'); const P = D.price;
-  tvEmbed(el, 'single-quote', {symbol: TV_SYM, width: '100%', isTransparent: true, colorTheme: isDark() ? 'dark' : 'light', locale: 'en'}, why => {
-    el.style.height = 'auto'; el.innerHTML = `<div class="tvfail" title="${esc(why)}">Live quote could not load in this browser.</div><div style="font-size:24px;font-weight:700">$${fmt(P.close, 2)}</div><div class="mut" style="font-size:11px">Last close ${dlong(P.close_date)} (build-time)</div>`; });
+  LQ.tv = false; clearTimeout(LQ.timer);
+  if (!QUOTE_API) { tvFallback(true); return; }  /* no endpoint yet: TradingView delayed widget */
+  if (LQ.last) { tvFallback(false); renderQuote(LQ.last); }
+  /* 15 s while the endpoint answers; back off to 30–60 s while it is unreachable (TradingView fallback shown meanwhile) */
+  const loop = async () => { await pollQuote(); const d = LQ.fails === 0 ? 15000 : Math.min(60000, 15000 * 2 ** Math.min(LQ.fails, 2)); LQ.timer = setTimeout(loop, d); };
+  loop();
+  if (!LQ.vis) { LQ.vis = true; document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { clearTimeout(LQ.timer); loop(); } }); }
 }
 /* trim leading quarters where every series is empty */
 const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.forEach(d => { const j = (d.data || []).findIndex(v => v != null && !isNaN(v)); if (j >= 0 && j < i0) i0 = j; }); if (i0 < n) i0 = Math.max(i0, n - 8); /* keep at most the latest 8 quarters */
@@ -256,16 +315,18 @@ function hero() {
   const ifp = ser('in-?force premium', 'kpi'), cu = ser('^customers', 'kpi'), pp = ser('premium per customer', 'kpi');
   const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><div class="asof">${esc(asof)}</div></div>`;
   $('#hero4').innerHTML = [
-    `<div class="hcard live"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND) quote from the free TradingView widget. It updates automatically but is delayed (Cboe/NYSE delayed feed); free widgets cannot show real-time US stock data.')}</div><div class="tvq" id="tvq"></div><div class="cap" style="padding:0 4px">NYSE: LMND · delayed quote · TradingView</div></div>`,
+    `<div class="hcard live"><div id="lq" class="lq" aria-live="polite" style="display:none"><div class="lq-top"><span class="lq-sess"><i class="lq-dot"></i><span id="lq-sl">Connecting to live quote…</span></span><span class="lq-sym">LMND · NYSE</span></div>
+       <div class="lq-row"><span class="lq-k" id="lq-k"></span><span class="lq-px" id="lq-px">—</span><span class="lq-ch" id="lq-ch"></span></div><div class="lq-sub" id="lq-sub"></div><div class="lq-cap" id="lq-cap"></div></div>
+     <div id="tvwrap" class="tvwrap" style="display:none"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND). The real-time box (Nasdaq last sale via Robinhood, refreshed every 15 s) appears when the quote service answers; otherwise this free TradingView widget is shown. It updates automatically but is delayed about 15 minutes (the “D” badge).')}</div><div class="tvq" id="tvq"></div><div class="cap" id="tvqcap" style="padding:0 4px">NYSE: LMND · delayed ~15 min (“D”) · TradingView</div></div></div>`,
     card(2, 'In-force premium', 'IFP', '$' + fmt(H.ifp / 1000, 2) + 'b', H.ifp_yoy, `$${fmt(H.ifp, 1)}m · ${pct(H.ifp_qoq)} QoQ · year ago $${fmt(H.ifp_prev_year, 1)}m`, 'spIfp'),
     card(3, 'Customers', 'Customers', fmt(H.customers / 1e6, 2) + 'm', H.cust_yoy, `${fmt(H.customers)} · ${pct(H.cust_qoq)} QoQ`, 'spCu'),
     card(4, 'Premium per customer', 'PPC', '$' + fmt(H.ppc), H.ppc_yoy, `${pct(H.ppc_qoq)} QoQ · year ago $${fmt(H.ppc_prev_year)}`, 'spPpc')].join('');
   const Y = P.ytd; const days = d => Math.ceil((new Date(d + 'T09:00:00-04:00') - new Date()) / 864e5);
   const dd = d => { const n = days(d); return n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow' : n === 0 ? 'today' : 'reported'; };
   $('#hero2').innerHTML = [
-    Y ? `<div class="mini" title="Year-to-date: latest close in the build vs the ${esc(Y.base_date)} close (last trading day of 2025)"><div class="l">LMND year-to-date</div><div class="v ${pcls(Y.pct)}">${pct(Y.pct)}</div><div class="s">$${fmt(Y.price, 2)} (${esc(dlong(Y.asof))}) vs $${fmt(Y.base, 2)} close ${esc(dlong(Y.base_date))} · as of build ${esc(D.meta.built_sgt)}</div></div>` : `<div class="mini"><div class="l">LMND year-to-date</div><div class="v na">n/a</div></div>`,
+    Y ? `<div class="mini" title="Year-to-date: latest price vs the ${esc(Y.base_date)} close (last trading day of 2025); follows the real-time quote when it is available"><div class="l">LMND year-to-date</div><div class="v ${pcls(Y.pct)}" id="ytd-v">${pct(Y.pct)}</div><div class="s" id="ytd-s1">$${fmt(Y.price, 2)} (${esc(dlong(Y.asof))}) vs $${fmt(Y.base, 2)} close ${esc(dlong(Y.base_date))} · as of build ${esc(D.meta.built_sgt)}</div></div>` : `<div class="mini"><div class="l">LMND year-to-date</div><div class="v na">n/a</div></div>`,
     `<div class="mini"><div class="l">Market cap / EV ${info('Price/IFP')}</div><div class="v">$${fmt(P.mcap_b, 2)}b / $${fmt(P.ev_b, 2)}b</div><div class="s">Close ${esc(dlong(P.close_date))} · 52-wk $${fmt(P.lo52, 2)}–$${fmt(P.hi52, 2)}</div></div>`,
-    `<div class="mini"><div class="l">Next earnings (Q3 2026)</div><div class="v">~${esc(dlong(D.meta.next_earnings))}</div><div class="s">${dd(D.meta.next_earnings)} · <a href="#street/guidance">company guide</a></div></div>`,
+    `<div class="mini"><div class="l">Next earnings (Q3 2026)</div><div class="v">~${esc(dlong(D.meta.next_earnings))}</div><div class="s">${dd(D.meta.next_earnings)} · <a href="#metrics/guidance">company guide</a></div></div>`,
     `<div class="mini"><div class="l">Investor Day</div><div class="v">${esc(dlong(D.meta.investor_day))}</div><div class="s">${dd(D.meta.investor_day)} · New York</div></div>`].join('');
   liveQuote();
 }
@@ -297,7 +358,7 @@ function overview() {
     ['Price / IFP · TTM P/S', lmnd.length ? `${lmnd[6]}x · ${lmnd[4]}x` : 'n/a', `Close ${dlong(P.close_date)}`],
     ['Analyst rating · PT low / avg / median / high', `${W['Analyst rating (11)'] || 'n/a'} · ${W['PT low / avg / median / high'] || 'n/a'}`, '6–7 Oct 2026'],
     ['Short interest', P.short_pct ? `${fmt(P.short_pct * 100, 1)}% of float · ${fmt(P.short_ratio, 1)} days to cover` : 'n/a', 'mid-Sep 2026'],
-    ['Next earnings (Q3 2026)', `~${dlong(D.meta.next_earnings)}`, 'Company / Yahoo calendar'],
+    ['Next earnings (Q3 2026)', `~${dlong(D.meta.next_earnings)}`, 'Company / market calendar'],
     ['Investor Day', dlong(D.meta.investor_day), 'New York']];
   const daysTo = w => { const m = w.match(/(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})/); if (!m) return ''; const d = new Date(`${m[2]} ${m[1]}, ${m[3]} 09:00 GMT-0500`); const n = Math.ceil((d - new Date()) / 864e5); return n > 0 ? `${n} days` : 'passed'; };
   const cats = N.catalysts.map(c => `<div class="cat"><div class="when">${esc(c.when === 'Ongoing' ? 'Through 2027' : c.when)}</div><div style="flex:1">${esc(c.what.charAt(0).toUpperCase() + c.what.slice(1))}</div><div class="dd">${daysTo(c.when)}</div></div>`).join('');
@@ -324,9 +385,9 @@ function overview() {
   const sel = $('#qsel'); const set = i => { i = Math.max(0, Math.min(LI, i)); sel.value = i; kpiCards(i); };
   sel.onchange = () => set(+sel.value); $('#qprev').onclick = () => set(+sel.value - 1); $('#qnext').onclick = () => set(+sel.value + 1);
   kpiCards(LI);
-  tvEmbed($('#tvchart'), 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: isDark() ? 'dark' : 'light', style: '1', locale: 'en',
+  tvEmbed($('#tvchart'), 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: tvTheme(), style: '1', locale: 'en',
     backgroundColor: isDark() ? 'rgba(28,28,30,1)' : 'rgba(255,255,255,1)', gridColor: isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)', allow_symbol_change: false, hide_side_toolbar: true, calendar: false, support_host: 'https://www.tradingview.com'},
-    why => { $('#tvchart').innerHTML = `<div class="tvfail">Live chart could not load (${esc(why)}).</div>`; $('#tvchart').style.height = 'auto'; });
+    why => { $('#tvchart').innerHTML = `<div class="tvfail">Live chart unavailable (${esc(why)}).</div><div class="mut" style="font-size:12px">Build-time snapshot: close $${fmt(D.price.close, 2)} on ${esc(dlong(D.price.close_date))} · not live</div>`; $('#tvchart').style.height = 'auto'; });
 }
 /* ---------------- Insurance KPIs ---------------- */
 const QL = Q.map(qshort);
@@ -382,8 +443,7 @@ function cfTab() { const c = n => ser(n, 'cf');
 function guidance() {
   const sh = sheet('guidance'); const t = sh.tables[0]; const rows = t.rows.filter(Array.isArray); const col = n => t.columns.findIndex(c => new RegExp(n, 'i').test(c));
   const g = n => rows.map(r => typeof r[col(n)] === 'number' ? r[col(n)] : null); const lab = rows.map(r => r[0]);
-  $('#blk-guidance').innerHTML = `<h2 class="bh">Guidance vs Actual</h2>
-   <p class="lead sm">${esc(t.notes[0] || '')}</p>
+  $('#blk-guidance').innerHTML = `<p class="lead sm">${esc(t.notes[0] || '')}</p>
    ${charts2([{id: 'gIfp', title: 'IFP: guidance range vs actual ($m)', tip: 'IFP'}, {id: 'gRev', title: 'Revenue: guidance midpoint vs actual ($m)', tip: 'Revenue', reins: 1}, {id: 'gEb', title: 'Adj. EBITDA: guidance midpoint vs actual ($m)', tip: 'Adj. EBITDA'}, {id: 'gGep', title: 'GEP: guidance midpoint vs actual ($m)', tip: 'GEP'}])}
    ${tableBlock({title: 'Quarter by quarter', columns: t.columns, rows: t.rows, notes: t.notes.slice(1)}, {id: 'tGva', pre: sh.pre})}`;
   const range = (lo, hi, act, l1) => ({labels: lab, datasets: [{type: 'bar', label: 'Guidance range', data: g(lo).map((v, i) => v == null ? null : [v, g(hi)[i]]), backgroundColor: C.band, barPercentage: .5, keep: 1},
@@ -399,7 +459,7 @@ function guidance() {
 function street() {
   const sh = sheet('wall street'); const W = wsMap(); const P = D.price;
   const pts = String(W['PT low / avg / median / high'] || '').match(/[\d.]+/g) || [];
-  $('#blk-street').innerHTML = `<h2 class="bh">Wall Street</h2>
+  $('#blk-street').innerHTML = `
    <div class="grid g4" style="margin-bottom:16px">${Object.entries(W).map(([k, v]) => `<div class="card kpi"><div class="l">${esc(k)}</div><div class="v" style="font-size:20px">${esc(v)}</div></div>`).join('')}</div>
    ${charts2([{id: 'wPt', title: 'Analyst price targets vs last close ($)'}, {id: 'wHist', title: 'LMND close vs average price target ($)'}])}
    ${sh.tables.map((t, i) => i === 0 ? details(esc(t.title || 'Consensus table'), tableBlock(t, {id: 'tWs' + i, notitle: 1}), 'same figures as the cards above, as a table') : tableBlock(t, {id: 'tWs' + i})).join('')}`;
@@ -440,7 +500,7 @@ function insiders() {
 function valuation() {
   const sh = sheet('valuation'); const t = sh.tables[0]; const rows = t.rows.filter(Array.isArray); const ci = n => t.columns.findIndex(c => new RegExp(n, 'i').test(c));
   const N = D.narrative;
-  $('#blk-valuation').innerHTML = `<h2 class="bh">Valuation & Peers</h2>
+  $('#blk-valuation').innerHTML = `
    ${charts2([{id: 'vPs', title: 'P/S (TTM) and Price / IFP (x)', tip: 'Price/IFP'}, {id: 'vMc', title: 'Market cap vs EV ($b)'}])}
    ${tableBlock({title: sh.title, columns: t.columns, rows: t.rows, notes: t.notes}, {id: 'tVal', terms: false})}
    <div class="card" style="margin-top:16px"><h3>Valuation view</h3>${N.valuation.map(p => `<p style="font-size:13.5px">${esc(p)}</p>`).join('')}</div>`;
@@ -448,18 +508,19 @@ function valuation() {
   wireCard({id: 'vPs', unit: 'x', build: () => ({labels: lab, datasets: [{type: 'bar', label: 'P/S (TTM)', data: rows.map(r => n(r, ci('p/s'))), backgroundColor: lab.map(l => l === 'LMND' ? C.acc : C.acc2)}, {type: 'bar', label: 'Price / IFP', data: rows.map(r => n(r, ci('price/ifp'))), backgroundColor: C.g}]})});
   wireCard({id: 'vMc', unit: '$b', build: () => ({labels: lab, datasets: [{type: 'bar', label: 'Market cap ($b)', data: rows.map(r => n(r, ci('mkt cap'))), backgroundColor: C.acc}, {type: 'bar', label: 'EV ($b)', data: rows.map(r => n(r, ci('^ev'))), backgroundColor: C.r}], scales: {y: {type: 'logarithmic', title: {display: true, text: 'log scale'}}}})});
 }
-/* ---------------- Street, Guidance & Valuation (one scrolling tab) ---------------- */
-const STREETB = [['street', 'Wall Street', () => street()], ['guidance', 'Guidance vs Actual', () => guidance()], ['valuation', 'Valuation & Peers', () => valuation()]];
-function streetTab() {
-  $('#s-street').innerHTML = `<h2>Street, Guidance & Valuation</h2>
-   <div class="subtabs jump" id="stjump">${STREETB.map(([k, l]) => `<button data-v="${k}">${esc(l)}</button>`).join('')}</div>
-   ${STREETB.map(([k]) => `<div class="sblk" id="blk-${k}"></div>`).join('')}`;
-  STREETB.forEach(([k, , fn]) => { try { fn(); } catch (e) { console.error('render ' + k, e); $('#blk-' + k).insertAdjacentHTML('beforeend', `<div class="tvfail">This block could not render: ${esc(e.message)}</div>`); } });
-  $$('#stjump button').forEach(b => b.onclick = () => { const h = '#street/' + b.dataset.v; if (location.hash === h) streetJump(b.dataset.v); else location.replace(h); });
+/* ---------------- Metrics & Street: Operating Metrics, Metric Picks, Guidance vs Actual, Wall Street, Valuation & Peers as one section ---------------- */
+const mblk = () => [['opmetrics', () => opmetrics(), 'opmetrics'], ['picks', () => picksTab(), 'picks'], ['guidance', () => guidance()], ['street', () => street()], ['valuation', () => valuation()]].filter(b => !b[2] || OPT[b[2]]);
+function metricsTab() {
+  const om = OPT.opmetrics ? OPT.opmetrics.qs.quarters : null;
+  $('#s-metrics').innerHTML = `<h2>Metrics & Street <span class="mut">${om ? `${esc(om[0])} – ${esc(om[om.length - 1])} · ` : ''}operating metrics, what to watch, guidance vs actual, Wall Street and valuation</span></h2>
+   ${mblk().map(([k]) => `<div class="sblk" id="blk-${k}"></div>`).join('')}`;
+  mblk().forEach(([k, fn]) => { try { fn(); } catch (e) { console.error('render ' + k, e); $('#blk-' + k).insertAdjacentHTML('beforeend', `<div class="tvfail">This part could not render: ${esc(e.message)}</div>`); } });
+  $$('#s-metrics a[href^="#metrics/"]:not([data-go])').forEach(a => a.addEventListener('click', e => { const k = a.getAttribute('href').split('/')[1]; if (location.hash === '#metrics/' + k) { e.preventDefault(); metricsJump(k); } }));
 }
-function streetJump(k, smooth = true) {
-  $$('#stjump button').forEach(b => b.classList.toggle('on', b.dataset.v === k));
-  const el = $('#blk-' + k); if (el && k !== 'street') el.scrollIntoView({behavior: smooth ? 'smooth' : 'auto', block: 'start'}); else if (el) window.scrollTo({top: $('#s-street').getBoundingClientRect().top + scrollY - 70, behavior: smooth ? 'smooth' : 'auto'});
+function metricsJump(k, smooth = true) {
+  const el = $('#blk-' + k); if (!el) return;
+  if (k === mblk()[0][0]) window.scrollTo({top: $('#s-metrics').getBoundingClientRect().top + scrollY - 70, behavior: smooth ? 'smooth' : 'auto'});
+  else el.scrollIntoView({behavior: smooth ? 'smooth' : 'auto', block: 'start'});
 }
 /* ---------------- Sources ---------------- */
 function sources() {
@@ -563,7 +624,7 @@ function rollout() {
 }
 const PICKMAP = [[/lae/i, /^lae ratio/i], [/in-?force|ifp/i, /^in-?force premium/i], [/gross loss ratio/i, /^gross loss ratio \(/i], [/gross profit/i, /adj\. gross profit \/ gep|gross profit margin/i], [/ebitda/i, /^adj\. ebitda/i], [/fcf|cash/i, /^cash & investments/i], [/growth spend/i, /^growth spend/i], [/retention|adr/i, /annual dollar retention/i], [/product mix|segment/i, /^ifp - pet/i]];
 function opmetrics() {
-  const sh = optSheet('opmetrics'), qs = OPT.opmetrics.qs; const el = $('#s-opmetrics'); const L = qs.quarters, Sx = qs.series, SEC = qs.sections || {};
+  const sh = optSheet('opmetrics'), qs = OPT.opmetrics.qs; const el = $('#blk-opmetrics'); const L = qs.quarters, Sx = qs.series, SEC = qs.sections || {};
   const P = OPT.picks ? D.sheets[OPT.picks.sheet] : null; const pt = P ? P.tables[0] : null; const pc = re => pt ? pt.columns.findIndex(c => re.test(c)) : -1;
   const picks = pt ? pt.rows.filter(Array.isArray).map(r => ({name: String(r[pc(/^metric/i)] || ''), why: r[pc(/why/i)], latest: r[pc(/latest/i)], watch: r[pc(/trend|watch/i)], chart: r[pc(/chart/i)]})) : [];
   const findS = re => Object.keys(Sx).find(k => re.test(k));
@@ -574,9 +635,8 @@ function opmetrics() {
   const fv = (k, v) => v == null ? 'n/a' : /\(%\)|%/.test(k) ? fmt(v, Number.isInteger(v) ? 0 : 1) + (/pts|pp/.test(k) ? '' : '%') : /\(\$m\)/.test(k) ? money(v) : /\(\$\)/.test(k) ? '$' + fmt(v) : /\(m\)/.test(k) ? fmt(v, 2) + 'm' : Math.abs(v) >= 1e5 ? fmt(v / 1e6, 2) + 'm' : fmt(v, Number.isInteger(v) ? 0 : 1);
   const txtKeys = Object.keys(qs.text || {}).filter(k => (qs.text[k] || []).some(Boolean));
   const ret = findS(/annual dollar retention/i) || numKeys[0];
-  el.innerHTML = `<h2>Operating Metrics <span class="mut">${esc(L[0])} – ${esc(L[L.length - 1])}</span></h2>
-   ${fnote(sh.pre, 'About this data')}
-   ${picks.length ? `<p class="lead sm"><b>What to watch.</b> the ${picks.length} recommended due-diligence metrics are on the <a href="#picks">Metric Picks</a> tab, each with a chart, its latest value and what to watch.</p>` : ''}
+  el.innerHTML = `${fnote(sh.pre, 'About this data')}
+   ${picks.length ? `<p class="lead sm"><b>What to watch.</b> the ${picks.length} recommended due-diligence metrics are <a href="#metrics/picks">further down this page</a>, each with a chart, its latest value and what to watch.</p>` : ''}
    <div class="card ccard" id="cc-omX" style="margin-bottom:16px"><div class="chead"><div class="ct">Metric explorer <select id="omSel" aria-label="Choose metric" style="margin-left:6px;max-width:260px">${secs.map(s => `<optgroup label="${esc(s)}">${numKeys.filter(k => (SEC[k] || 'Metrics') === s).map(k => `<option ${k === ret ? 'selected' : ''}>${esc(k)}</option>`).join('')}</optgroup>`).join('')}</select></div>
      <div class="ctools"><div class="seg" data-k="mode"><button data-v="v" class="on">Value</button><button data-v="q">QoQ %</button><button data-v="y">YoY %</button></div><div class="seg" data-k="range"><button data-v="8">8Q</button><button data-v="12">3Y</button><button data-v="all" class="on">2020+ (all)</button></div><span class="ztools"><button class="ib" data-z="in" aria-label="Zoom in">+</button><button class="ib" data-z="out" aria-label="Zoom out">−</button><button class="ib wide" data-z="reset">Reset</button></span></div></div>
      <div class="chartbox" style="height:330px"><canvas id="omX"></canvas></div><div class="chint">Pick any metric, or click a card below. Hover or tap for values · drag to pan · pinch or Ctrl+scroll to zoom</div><div class="reinsboxes"></div></div>
@@ -615,16 +675,16 @@ function picksTab() {
     [/retention|adr/i, () => ({datasets: [line('Annual dollar retention (%)', /annual dollar retention/i, C.acc, {unit: '%'}), line('Premium per customer ($)', /^premium per customer \(/i, C.g, {yAxisID: 'y1', unit: '$'})], scales: y1})],
     [/product mix|segment/i, () => ({datasets: [bar('Home/renters US', /^ifp - home/i, C.acc), bar('Pet', /^ifp - pet/i, C.acc2), bar('Car', /^ifp - car/i, C.g), bar('Europe', /^ifp - europe/i, C.b)], stacked: true, unit: '$m'})]];
   const specs = picks.map((p, i) => { const m = SPEC.find(([re]) => re.test(p.name)); return m && om ? m[1]() : null; });
-  $('#s-picks').innerHTML = `<h2>What to watch <span class="mut">${picks.length} recommended due-diligence metrics</span></h2>
+  $('#blk-picks').innerHTML = `
    ${P.title ? `<div class="mut" style="font-size:13px;margin-bottom:4px">${esc(P.title)}</div>` : ''}${fnote(P.pre, 'About this data')}
-   <div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">Checklist</h3>${picks.map((p, i) => `<div class="cat"><div class="when" style="width:28px">${i + 1}</div><div style="flex:1"><a href="#picks" data-go="pk-${i}"><b>${esc(p.name.replace(/^\d+\.\s*/, ''))}</b></a><div class="mut" style="font-size:12.5px">${esc(p.watch || '')}</div></div><div class="dd" style="max-width:200px;white-space:normal;text-align:right">${esc(p.latest || '')}</div></div>`).join('')}</div>
+   <div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">Checklist</h3>${picks.map((p, i) => `<div class="cat"><div class="when" style="width:28px">${i + 1}</div><div style="flex:1"><a href="#metrics/picks" data-go="pk-${i}"><b>${esc(p.name.replace(/^\d+\.\s*/, ''))}</b></a><div class="mut" style="font-size:12.5px">${esc(p.watch || '')}</div></div><div class="dd" style="max-width:200px;white-space:normal;text-align:right">${esc(p.latest || '')}</div></div>`).join('')}</div>
    <div class="grid g2">${picks.map((p, i) => `<div id="pk-${i}" style="scroll-margin-top:70px">${specs[i] && specs[i].datasets.some(Boolean) ? ccard({id: 'pkc' + i, title: p.name, growth: 0, reins: specs[i].reins, ranges: [['8', '8Q'], ['12', '3Y'], ['all', '2020+ (all)']], h: 260}) : `<div class="card"><div class="ct" style="font-weight:600">${esc(p.name)}</div></div>`}
      <div class="card" style="margin-top:-8px;border-top-left-radius:0;border-top-right-radius:0;padding-top:12px"><div class="kpi"><div class="l">Latest (${esc(D.hero.quarter)})</div><div class="v" style="font-size:18px">${esc(p.latest || 'n/a')}</div></div>
      <p style="font-size:13px;margin:8px 0 6px"><b>What to watch:</b> ${esc(p.watch || '')}</p>${details('Why it matters', esc(p.why || ''), esc(p.chart || ''))}</div></div>`).join('')}</div>
    <h3>Table view</h3>${details('All picks in one table', tableBlock(pt, {id: 'tPk', wrap: true, terms: false}), `${picks.length} metrics`)}`;
   specs.forEach((sp, i) => { if (!sp || !sp.datasets.some(Boolean)) return; wireCard({id: 'pkc' + i, reins: sp.reins, unit: sp.unit || '', build: st => { const s0 = rangeSlice(L, st); const ds = sp.datasets.filter(Boolean).map(d => Object.assign({}, d, {data: d.data.slice(s0)}));
     const first = Math.min(...ds.map(d => d.data.findIndex(v => v != null)).filter(x => x >= 0)); return {labels: L.slice(s0 + first), datasets: ds.map(d => Object.assign(d, {data: d.data.slice(first)})), stacked: sp.stacked, scales: Object.assign({}, sp.scales || {}, sp.stacked ? {y: {stacked: true}} : {})}; }}); });
-  $$('#s-picks [data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = document.getElementById(a.dataset.go); t && t.scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  $$('#blk-picks [data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = document.getElementById(a.dataset.go); t && t.scrollIntoView({behavior: 'smooth', block: 'start'}); });
 }
 /* ---------------- router ---------------- */
 /* ---------------- Financial Statements (sub-tabs: BS, IS, CF) ---------------- */
@@ -643,13 +703,15 @@ function finTab() {
   finShow((location.hash.split('/')[1] || 'bs'));
 }
 const TABS = [['overview', 'Overview', overview], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
-  ['rollout', 'Product Rollout', rollout, 'rollout'], ['opmetrics', 'Operating Metrics', opmetrics, 'opmetrics'], ['picks', 'Metric Picks', picksTab, 'picks'], ['fin', 'Financial Statements', finTab],
-  ['street', 'Street, Guidance & Valuation', streetTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources', sources]]
+  ['rollout', 'Product Rollout', rollout, 'rollout'], ['fin', 'Financial Statements', finTab],
+  ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources', sources]]
   .filter(t => !t[3] || OPT[t[3]]);
 /* short labels keep the nav simple; section headings keep the full names */
-const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', opmetrics: 'Operating Metrics', picks: 'Metric Picks', fin: 'Financials', street: 'Street & Valuation', insiders: 'Insiders', sources: 'Sources'};
+const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', fin: 'Financials', metrics: 'Metrics & Street', insiders: 'Insiders', sources: 'Sources'};
+/* max 8 nav pills: Sources stays a valid route, reached from the footer link */
+const NONAV = new Set(['sources']);
 /* old links: retired tabs land somewhere sensible */
-const MOVED = {guidance: '#street/guidance', valuation: '#street/valuation', risks: '#overview'};
+const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview'};
 const done = {};
 function route() {
   let id = (location.hash || '#overview').slice(1).split('/')[0];
@@ -661,12 +723,12 @@ function route() {
   $$('main section').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
   const t = TABS.find(t => t[0] === id);
   if (!done[id]) { try { t[2](); } catch (e) { console.error('render ' + id, e); $('#s-' + id).insertAdjacentHTML('beforeend', `<div class="tvfail">This tab could not render: ${esc(e.message)}</div>`); } done[id] = 1; wireTables($('#s-' + id)); wireXall($('#s-' + id)); }
-  if (id === 'street') { const sub = location.hash.split('/')[1]; if (sub && STREETB.some(b => b[0] === sub)) setTimeout(() => streetJump(sub, !!route.seen), 60); else $$('#stjump button').forEach(b => b.classList.remove('on')); }
+  if (id === 'metrics') { const sub = location.hash.split('/')[1]; if (sub && mblk().some(b => b[0] === sub)) setTimeout(() => metricsJump(sub, false), 60); }
   route.seen = 1;
   document.title = `${t[1]} · Lemonade (LMND) Dashboard · © Hugo Tian`;
 }
 function buildNav() {
-  $('#nav').innerHTML = TABS.map(([id, l]) => `<a href="#${id}" data-t="${id}" title="${esc(l)}">${esc(NAVL[id] || l)}</a>`).join('');
+  $('#nav').innerHTML = TABS.filter(([id]) => !NONAV.has(id)).map(([id, l]) => `<a href="#${id}" data-t="${id}" title="${esc(l)}">${esc(NAVL[id] || l)}</a>`).join('');
   $('#main').innerHTML = TABS.map(([id]) => `<section id="s-${id}"></section>`).join('');
 }
 /* ---------------- theme ---------------- */
@@ -683,5 +745,5 @@ $('#themebtn').onclick = () => { const cur = document.documentElement.dataset.th
   applyTheme(true); };
 if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) applyTheme(true); });
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via TradingView (delayed). Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b>`;
+$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via TradingView (delayed). Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b> · <a class="flink" href="#sources">Sources</a>`;
 buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);
