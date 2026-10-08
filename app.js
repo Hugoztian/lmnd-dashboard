@@ -311,7 +311,7 @@ const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.for
 /* ---------------- hero ---------------- */
 function hero() {
   const H = D.hero, P = D.price, asof = `${H.quarter} · as of ${H.period_end_long}`;
-  $('#updated').innerHTML = `Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · market data close ${esc(dlong(P.close_date))} · live price via TradingView · updated ${esc(D.meta.built_sgt)}`;
+  $('#updated').innerHTML = `Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · market data close ${esc(dlong(P.close_date))} · real-time price via Robinhood, chart via TradingView · updated ${esc(D.meta.built_sgt)}`;
   const ifp = ser('in-?force premium', 'kpi'), cu = ser('^customers', 'kpi'), pp = ser('premium per customer', 'kpi');
   const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><div class="asof">${esc(asof)}</div></div>`;
   $('#hero4').innerHTML = [
@@ -745,5 +745,5 @@ $('#themebtn').onclick = () => { const cur = document.documentElement.dataset.th
   applyTheme(true); };
 if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) applyTheme(true); });
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via TradingView (delayed). Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b> · <a class="flink" href="#sources">Sources</a>`;
+$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; real-time price via Robinhood (TradingView delayed quote as backup), live chart via TradingView. Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b> · <a class="flink" href="#sources">Sources</a>`;
 buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);
