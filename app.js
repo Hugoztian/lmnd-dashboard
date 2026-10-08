@@ -225,21 +225,77 @@ function xallBtns() { return `<div class="xall"><button class="btn" data-xall="1
 function wireXall(root) { $$('[data-xall]', root).forEach(b => b.onclick = () => { const scope = b.closest('.xscope') || root; $$('details.x', scope).forEach(d => d.open = b.dataset.xall === '1'); }); }
 const sheet = rx => { for (const n in D.sheets) if (new RegExp(rx, 'i').test(n)) return D.sheets[n]; return null; };
 
-/* ---------------- TradingView (keyless free widgets, delayed quote) ---------------- */
-const TV_SYM = 'NYSE:LMND';
-function tvEmbed(el, widget, cfg, onFail) {
-  if (!el) return; el.innerHTML = '';
-  const box = document.createElement('div'); box.className = 'tradingview-widget-container'; box.style.height = '100%';
-  const inner = document.createElement('div'); inner.className = 'tradingview-widget-container__widget'; inner.style.height = '100%'; box.appendChild(inner);
-  const sc = document.createElement('script'); sc.type = 'text/javascript'; sc.async = true; sc.src = 'https://s3.tradingview.com/external-embedding/embed-widget-' + widget + '.js'; sc.textContent = JSON.stringify(cfg);
-  let failed = false; const fail = why => { if (failed) return; failed = true; onFail && onFail(why); };
-  sc.onerror = () => fail('script blocked or offline'); box.appendChild(sc); el.appendChild(box);
-  setTimeout(() => { if (!el.querySelector('iframe')) fail('widget did not load within 12 s'); }, 12000);
+/* ---------------- Yahoo Finance (v8 chart API; browser CORS via allorigins relay, build-time Yahoo fallback) ---------------- */
+const YF_SYM = 'LMND';
+const YF_PAGE = 'https://finance.yahoo.com/quote/LMND/';
+const YF_DATA = 'https://raw.githubusercontent.com/Hugoztian/lmnd-dashboard/yf-data/';
+const yfGet = async (x, unwrap, ms) => { const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), ms || 12000);
+  try { const r = await fetch(x, {cache: 'no-store', signal: ctl.signal}); if (!r.ok) throw new Error('HTTP ' + r.status);
+    let j = await r.json(); if (unwrap) j = JSON.parse(j.contents); const res = j && j.chart && j.chart.result && j.chart.result[0];
+    if (!res || !res.meta) throw new Error('empty'); return res; } finally { clearTimeout(to); } };
+/* 1) Yahoo data mirrored every 5 min (market hours) by a GitHub Action into the yf-data branch; 2) direct relay to Yahoo for a fresher tick when it answers */
+const yfMirror = range => yfGet(YF_DATA + range + '.json?t=' + Math.floor(Date.now() / 60000), false, 8000);
+const yfRelay = (range, interval) => { const q = `https://query1.finance.yahoo.com/v8/finance/chart/${YF_SYM}?range=${range}&interval=${interval}&includePrePost=false&_=${Math.floor(Date.now() / 15000)}`;
+  return Promise.any([yfGet('https://api.allorigins.win/raw?url=' + encodeURIComponent(q)), yfGet('https://api.allorigins.win/get?url=' + encodeURIComponent(q), true)]); };
+async function yfChart(range, interval) {
+  try { return await yfMirror(range); } catch (e) {}
+  try { return await yfRelay(range, interval); } catch (e) { throw new Error('Yahoo Finance unreachable'); }
+}
+const sgt = (t, o) => new Date(t * 1000).toLocaleString('en-SG', Object.assign({timeZone: 'Asia/Singapore'}, o));
+const LQ = {timer: null, last: null};
+function renderYfQuote(m, stale) {
+  const el = $('#tvq'); if (!el) return;
+  const px = m.regularMarketPrice, pc = m.chartPreviousClose != null ? m.chartPreviousClose : m.previousClose;
+  const ch = px - pc, chp = pc ? ch / pc * 100 : 0, cls = ch >= 0 ? 'up' : 'dn', sg = ch >= 0 ? '+' : '';
+  const t = m.regularMarketTime ? sgt(m.regularMarketTime, {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false}) + ' SGT' : '';
+  el.innerHTML = `<a class="yfq" href="${YF_PAGE}" target="_blank" rel="noopener" title="Open LMND on Yahoo Finance">
+    <span class="yfl"><b>LMND</b><span>Lemonade, Inc.</span></span>
+    <span class="yfr"><b>$${fmt(px, 2)}</b><span class="${cls}">${sg}${fmt(ch, 2)} (${sg}${fmt(chp, 2)}%)</span></span></a>
+    <div class="yft">${stale ? 'Updating · ' : ''}${esc(t)}${m.fiftyTwoWeekLow ? ` · 52-wk $${fmt(m.fiftyTwoWeekLow, 2)}–$${fmt(m.fiftyTwoWeekHigh, 2)}` : ''}</div>`;
+}
+function yfFallback(loading) {
+  const el = $('#tvq'), P = D.price; if (!el) return;
+  const ch = P.close - P.prev_close, cls = ch >= 0 ? 'up' : 'dn', sg = ch >= 0 ? '+' : '';
+  el.innerHTML = `<a class="yfq" href="${YF_PAGE}" target="_blank" rel="noopener"><span class="yfl"><b>LMND</b><span>Lemonade, Inc.</span></span>
+    <span class="yfr"><b>$${fmt(P.close, 2)}</b><span class="${cls}">${sg}${fmt(ch, 2)} (${sg}${fmt(ch / P.prev_close * 100, 2)}%)</span></span></a>
+    <div class="yft">${loading ? 'Connecting to Yahoo Finance…' : '<span class="tvfail" style="padding:0">Live Yahoo quote unreachable</span>'} · close ${esc(dlong(P.close_date))} (build-time, Yahoo)</div>`;
+}
+async function pollYf() {
+  const take = m => { if (!m || (LQ.last && LQ.ok && (m.regularMarketTime || 0) < (LQ.last.regularMarketTime || 0))) return; LQ.last = m; LQ.ok = true; renderYfQuote(m); try { localStorage.setItem('lmnd-yfq', JSON.stringify(m)); } catch (e) {} };
+  const jobs = [yfMirror('1d').then(r => take(r.meta)), yfRelay('1d', '5m').then(r => take(r.meta))];
+  const res = await Promise.allSettled(jobs); if (res.some(r => r.status === 'fulfilled')) return true;
+  if (LQ.last && LQ.ok) renderYfQuote(LQ.last); else yfFallback(); return false;
 }
 function liveQuote() {
-  const el = $('#tvq'); const P = D.price;
-  tvEmbed(el, 'single-quote', {symbol: TV_SYM, width: '100%', isTransparent: true, colorTheme: isDark() ? 'dark' : 'light', locale: 'en'}, why => {
-    el.style.height = 'auto'; el.innerHTML = `<div class="tvfail" title="${esc(why)}">Live quote could not load in this browser.</div><div style="font-size:24px;font-weight:700">$${fmt(P.close, 2)}</div><div class="mut" style="font-size:11px">Last close ${dlong(P.close_date)} (build-time)</div>`; });
+  if (LQ.timer) clearTimeout(LQ.timer);
+  if (!LQ.last) { try { LQ.last = JSON.parse(localStorage.getItem('lmnd-yfq') || 'null'); } catch (e) {} }
+  if (LQ.last) renderYfQuote(LQ.last, true); else yfFallback(true);
+  const loop = async () => { const ok = document.hidden ? true : await pollYf(); LQ.timer = setTimeout(loop, ok ? 30000 : 60000); };
+  loop();
+}
+const YF_RANGES = [['1D', '1d', '5m'], ['5D', '5d', '15m'], ['1M', '1mo', '1d'], ['6M', '6mo', '1d'], ['YTD', 'ytd', '1d'], ['1Y', '1y', '1d'], ['5Y', '5y', '1wk']];
+async function yfLiveChart(rk) {
+  const host = $('#tvchart'); if (!host) return; rk = rk || '1Y';
+  const R = YF_RANGES.find(r => r[0] === rk) || YF_RANGES[5];
+  $$('#yfrng button').forEach(b => b.classList.toggle('on', b.dataset.v === R[0]));
+  const st = $('#yfst'); st.textContent = 'Loading from Yahoo Finance…';
+  let labels, vals, src;
+  try {
+    const r = await yfChart(R[1], R[2]); const q = r.indicators.quote[0].close; const intra = /m$/.test(R[2]);
+    labels = []; vals = [];
+    r.timestamp.forEach((t, i) => { if (q[i] == null) return; labels.push(intra ? sgt(t, {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false}) : sgt(t, {day: 'numeric', month: 'short', year: '2-digit'})); vals.push(+q[i].toFixed(2)); });
+    src = `Yahoo Finance · ${R[0]} · ${intra ? R[2] + ' bars, times in SGT' : R[2] === '1wk' ? 'weekly closes' : 'daily closes'} · updated ${sgt(Date.now() / 1000, {hour: '2-digit', minute: '2-digit', hour12: false})} SGT`;
+  } catch (e) {
+    const h = D.price.hist || []; labels = h.map(x => dlong(x[0])); vals = h.map(x => x[1]);
+    src = `Yahoo Finance live data unreachable (${e.message}); showing build-time Yahoo daily closes to ${dlong(D.price.close_date)}`;
+  }
+  st.textContent = src;
+  if (charts.yfLive) { try { charts.yfLive.destroy(); } catch (e) {} }
+  const up = vals.length > 1 && vals[vals.length - 1] >= vals[0], col = up ? C.up : C.dn;
+  charts.yfLive = new Chart($('#yfcv'), {type: 'line', data: {labels, datasets: [{label: 'LMND ($)', data: vals, borderColor: col, backgroundColor: up ? 'rgba(48,209,88,.10)' : 'rgba(255,69,58,.10)', fill: true, pointRadius: 0, tension: .15, borderWidth: 1.8}]},
+    options: {responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, animation: false,
+      plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => ' $' + fmt(c.parsed.y, 2)}}, zoom: zoomOpts()},
+      scales: {x: {ticks: {maxTicksLimit: 8, autoSkip: true, maxRotation: 0}, grid: {display: false}}, y: {position: 'right', ticks: {callback: v => '$' + v}}}}});
 }
 /* trim leading quarters where every series is empty */
 const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.forEach(d => { const j = (d.data || []).findIndex(v => v != null && !isNaN(v)); if (j >= 0 && j < i0) i0 = j; }); if (i0 < n) i0 = Math.max(i0, n - 8); /* keep at most the latest 8 quarters */
@@ -247,11 +303,11 @@ const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.for
 /* ---------------- hero ---------------- */
 function hero() {
   const H = D.hero, P = D.price, asof = `${H.quarter} · as of ${H.period_end_long}`;
-  $('#updated').innerHTML = `Last updated <b>${esc(D.meta.built_sgt)}</b> · Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · Market data: close ${esc(dlong(P.close_date))}, live price via TradingView`;
+  $('#updated').innerHTML = `Last updated <b>${esc(D.meta.built_sgt)}</b> · Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · Market data: close ${esc(dlong(P.close_date))}, live price via Yahoo Finance`;
   const ifp = ser('in-?force premium', 'kpi'), cu = ser('^customers', 'kpi'), pp = ser('premium per customer', 'kpi');
   const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><span class="asof">${esc(asof)}</span></div>`;
   $('#hero4').innerHTML = [
-    `<div class="hcard live"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND) quote from the free TradingView widget. It updates automatically but is delayed (Cboe/NYSE delayed feed); free widgets cannot show real-time US stock data.')}</div><div class="tvq" id="tvq"></div><div class="cap" style="padding:0 4px">NYSE: LMND · auto-updating · delayed quote (TradingView)</div></div>`,
+    `<div class="hcard live"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND) quote from Yahoo Finance, refreshed every 30 seconds while this page is open. Yahoo quotes for NYSE stocks are near real-time during market hours. If Yahoo cannot be reached, the last build-time Yahoo close is shown instead.')}</div><div class="tvq" id="tvq"></div><div class="cap" style="padding:0 4px">NYSE: LMND · auto-updating every 30 s · <a href="https://finance.yahoo.com/quote/LMND/" target="_blank" rel="noopener">Yahoo Finance</a></div></div>`,
     card(2, 'In-force premium', 'IFP', '$' + fmt(H.ifp / 1000, 2) + 'b', H.ifp_yoy, `$${fmt(H.ifp, 1)}m · ${pct(H.ifp_qoq)} QoQ · year ago $${fmt(H.ifp_prev_year, 1)}m`, 'spIfp'),
     card(3, 'Customers', 'Customers', fmt(H.customers / 1e6, 2) + 'm', H.cust_yoy, `${fmt(H.customers)} · ${pct(H.cust_qoq)} QoQ`, 'spCu'),
     card(4, 'Premium per customer', 'PPC', '$' + fmt(H.ppc), H.ppc_yoy, `${pct(H.ppc_qoq)} QoQ · year ago $${fmt(H.ppc_prev_year)}`, 'spPpc')].join('');
@@ -309,7 +365,7 @@ function overview() {
     <div class="card"><h3>Catalysts & dates</h3>${cats}<ul class="notes"><li>Q3 2026 company guide: ${esc(((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^Q3 2026 guide \(Q2'26 letter\):\s*/, ''))}</li></ul></div></div>
   <div class="grid g3" style="margin-bottom:16px">${exKeys.map(k => `<div class="card"><h3>${esc(k)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(ex[k])}</div></div>`).join('')}</div>
   <div style="margin-bottom:16px">
-    <div class="card"><h3 style="margin-top:0">LMND live chart <span class="mut" style="font-size:12px;font-weight:400">· ${TV_SYM} via TradingView · delayed</span></h3><div class="tvchart" id="tvchart"></div></div></div>
+    <div class="card"><div class="yfhead"><h3 style="margin:0">LMND live chart <span class="mut" style="font-size:12px;font-weight:400">· NYSE: LMND via <a href="https://finance.yahoo.com/quote/LMND/" target="_blank" rel="noopener">Yahoo Finance</a></span></h3><div class="seg" id="yfrng">${YF_RANGES.map(r => `<button data-v="${r[0]}">${r[0]}</button>`).join('')}</div></div><div class="tvchart" id="tvchart"><canvas id="yfcv"></canvas></div><div class="cap mut" id="yfst" style="font-size:11px;margin-top:6px"></div></div></div>
   <div class="xscope">${xallBtns()}
   ${details('Business overview', paras(sec('business').paras), 'model, Giveback, reinsurance, growth financing')}
   ${details('Latest quarter, guidance & path to profit', paras([...sec('latest quarter').paras, ...sec('latest quarter').subs.flatMap(x => x.paras)]), H.quarter)}
@@ -319,9 +375,7 @@ function overview() {
   const sel = $('#qsel'); const set = i => { i = Math.max(0, Math.min(LI, i)); sel.value = i; kpiCards(i); };
   sel.onchange = () => set(+sel.value); $('#qprev').onclick = () => set(+sel.value - 1); $('#qnext').onclick = () => set(+sel.value + 1);
   kpiCards(LI);
-  tvEmbed($('#tvchart'), 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: isDark() ? 'dark' : 'light', style: '1', locale: 'en',
-    backgroundColor: isDark() ? 'rgba(28,28,30,1)' : 'rgba(255,255,255,1)', gridColor: isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', allow_symbol_change: false, hide_side_toolbar: true, calendar: false, support_host: 'https://www.tradingview.com'},
-    why => { $('#tvchart').innerHTML = `<div class="tvfail">Live chart could not load (${esc(why)}).</div>`; $('#tvchart').style.height = 'auto'; });
+  $$('#yfrng button').forEach(b => b.onclick = () => yfLiveChart(b.dataset.v)); yfLiveChart('1Y');
 }
 /* ---------------- Insurance KPIs ---------------- */
 const QL = Q.map(qshort);
@@ -463,7 +517,7 @@ function sources() {
    ${details('Report sources', `<ul class="lst">${rep.map(p => `<li>${linkify(p.replace(/^•\s*/, ''))}</li>`).join('')}</ul>`, `${rep.length} items`)}
    ${details('Reinsurance restructuring sources', `<ul class="lst">${D.reins.map(r => `<li><b>${esc(dlong(r.date))} — ${esc(r.title)}:</b> ${esc(r.source)}</li>`).join('')}</ul>`, `${D.reins.length} events`)}
    ${details('Workbook notes & disclaimer', `<ul class="lst">${(cover ? cover.pre : []).filter(p => !/^\d+\.|^Sheets:/.test(p)).map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`)}
-   ${details('Data build', `<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price: TradingView free widget (delayed quote).</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`)}
+   ${details('Data build', `<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price and live chart: Yahoo Finance chart API, refreshed every 30 s in the browser.</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`)}
    ${details('Metric definitions', `<ul class="lst">${Object.entries(D.glossary).map(([k, v]) => `<li><b>${esc(k)}</b> — ${esc(v)}</li>`).join('')}</ul>`)}</div>`;
 }
 
@@ -669,5 +723,5 @@ $('#themebtn').onclick = () => { const cur = document.documentElement.dataset.th
   applyTheme(true); };
 if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) applyTheme(true); });
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via TradingView (delayed). Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b>`;
+$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via Yahoo Finance. Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b>`;
 buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);
