@@ -519,8 +519,7 @@ function highlights() {
    <div class="xscope" id="hlwrap">${xallBtns()}${items.map((it, k) => { const r = it.r; const re = reinsAt(it.q);
      const sm = [iDt >= 0 && r[iDt] ? 'letter ' + r[iDt] : '', iI >= 0 && r[iI] != null ? `IFP ${money(r[iI])}${iIy >= 0 && r[iIy] != null ? ' (' + pct(r[iIy], 0) + ')' : ''}` : '', iR >= 0 && r[iR] != null ? `revenue ${money(r[iR])}${iRy >= 0 && r[iRy] != null ? ' (' + pct(r[iRy], 0) + ')' : ''}` : ''].filter(Boolean).join(' · ');
      return details(`${esc(it.q)}${re ? ' <span class="pill acc">⟲ reinsurance</span>' : ''}`, (re ? `<div class="reinsbox on"><h4>${esc(re.title)}</h4>${esc(re.detail)}</div>` : '') + bullets(r[iTxt]), esc(sm), k === 0); }).join('')}</div>
-   ${(t.notes || []).length ? `<ul class="notes">${t.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-   <h3>Table view</h3>${tableBlock(t, {id: 'tHl', wrap: true, terms: false, maxh: 600})}`;
+   ${(t.notes || []).length ? `<ul class="notes">${t.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
   const upd = () => { const q = $('#hlq').value.trim().toLowerCase(); let v = 0; $$('#hlwrap details.x').forEach(d => { const hit = !q || d.innerText.toLowerCase().includes(q) || d.querySelector('.xb').textContent.toLowerCase().includes(q); d.hidden = !hit; if (hit) v++; if (q && hit) d.open = true; }); $('#hln').textContent = `${v} of ${items.length} quarters`;
     $$('#hlchips button').forEach(b => b.classList.toggle('on', b.dataset.v.toLowerCase() === q)); };
   $('#hlq').addEventListener('input', upd); $$('#hlchips button').forEach(b => b.onclick = () => { const i = $('#hlq'); i.value = i.value.toLowerCase() === b.dataset.v.toLowerCase() ? '' : b.dataset.v; upd(); }); upd();
