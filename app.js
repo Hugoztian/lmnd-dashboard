@@ -714,8 +714,8 @@ function finTab() {
   $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
   finShow((location.hash.split('/')[1] || 'bs'));
 }
-const TABS = [['overview', 'Overview', overview], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
-  ['rollout', 'Product Rollout', rollout, 'rollout'], ['fin', 'Financial Statements', finTab],
+const TABS = [['overview', 'Overview', overview], ['fin', 'Financial Statements', finTab], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
+  ['rollout', 'Product Rollout', rollout, 'rollout'],
   ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources & Live feed', sources]]
   .filter(t => !t[3] || OPT[t[3]]);
 /* short labels keep the nav simple; section headings keep the full names */
