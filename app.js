@@ -17,15 +17,17 @@ const isDark = () => { const t = document.documentElement.dataset.theme; return 
 let C = {};
 function palette() {
   C = isDark()
-    ? {acc:'#ff3d9f', acc2:'#ff8cc6', acc3:'rgba(255,61,159,.25)', g:'#e5e5ea', r:'#8e8e93', y:'#ffb340', b:'#64d2ff', p:'#bf8fe6', t:'#5ad1b4', up:'#30d158', dn:'#ff453a', grid:'rgba(255,255,255,.08)', txt:'#a1a1a6', title:'#f5f5f7', band:'rgba(142,142,147,.35)'}
-    : {acc:'#FF0083', acc2:'#ff8cc6', acc3:'rgba(255,0,131,.18)', g:'#3a3a3c', r:'#a1a1a6', y:'#e08a00', b:'#32ade6', p:'#8e5cd9', t:'#1a9e85', up:'#1d8a3a', dn:'#d70015', grid:'rgba(0,0,0,.06)', txt:'#6e6e73', title:'#1d1d1f', band:'rgba(142,142,147,.35)'};
+    ? {acc:'#ff3d9f', acc2:'#ff9fcf', acc3:'rgba(255,61,159,.16)', g:'#d1d1d6', r:'#636366', y:'#c9a77c', b:'#8fa3bf', p:'#b49fc9', t:'#86b8a8', up:'#30d158', dn:'#ff453a', grid:'rgba(255,255,255,.06)', txt:'#8e8e93', title:'#f5f5f7', band:'rgba(142,142,147,.30)'}
+    : {acc:'#FF0083', acc2:'#ff99cd', acc3:'rgba(255,0,131,.10)', g:'#48484a', r:'#c7c7cc', y:'#b8946a', b:'#7d93b2', p:'#a48bbd', t:'#6fa696', up:'#1d8a3a', dn:'#d70015', grid:'rgba(0,0,0,.045)', txt:'#86868b', title:'#1d1d1f', band:'rgba(142,142,147,.28)'};
   const d = Chart.defaults;
-  d.font.family = '-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif'; d.font.size = 11.5; d.color = C.txt; d.borderColor = C.grid;
-  d.elements.line.borderWidth = 2; d.elements.line.tension = .3; d.elements.point.radius = 2.5; d.elements.point.hoverRadius = 5; d.elements.point.hitRadius = 10;
-  d.elements.bar.borderRadius = 4; d.elements.bar.borderSkipped = false; d.datasets.bar.maxBarThickness = 36;
-  Object.assign(d.plugins.legend.labels, {usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 12});
+  d.font.family = '-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif'; d.font.size = 11; d.color = C.txt; d.borderColor = C.grid;
+  d.elements.line.borderWidth = 2; d.elements.line.tension = .35; d.elements.point.radius = 1.5; d.elements.point.hoverRadius = 5; d.elements.point.hitRadius = 12; d.elements.point.borderWidth = 0;
+  d.elements.bar.borderRadius = 5; d.elements.bar.borderSkipped = false; d.datasets.bar.maxBarThickness = 32;
+  Object.assign(d.plugins.legend.labels, {usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, padding: 14, color: C.txt});
   Object.assign(d.plugins.tooltip, {backgroundColor: isDark() ? 'rgba(58,58,60,.97)' : 'rgba(29,29,31,.93)', cornerRadius: 10, padding: 10, boxPadding: 4, usePointStyle: true});
-  d.scale.border = {display: false}; d.scale.ticks.padding = 6; d.scales.category.grid = {display: false};
+  d.scale.border = {display: false}; d.scale.ticks.padding = 8; d.scales.category.grid = {display: false};
+  d.scales.category.ticks = Object.assign(d.scales.category.ticks || {}, {maxRotation: 0, autoSkip: true, autoSkipPadding: 14});
+  ['linear', 'logarithmic'].forEach(k => { if (d.scales[k]) { d.scales[k].grid = Object.assign(d.scales[k].grid || {}, {color: C.grid, drawTicks: false}); d.scales[k].ticks = Object.assign(d.scales[k].ticks || {}, {maxTicksLimit: 5}); } });
 }
 try { if (window.ChartZoom) Chart.register(window.ChartZoom); } catch (e) {}
 try { const A = window['chartjs-plugin-annotation']; if (A) Chart.register(A.default || A); } catch (e) {}
@@ -85,7 +87,7 @@ function ccard(o) {
   const tools = [];
   if (o.growth) tools.push(`<div class="seg" data-k="mode">${[['v','Value'],['q','QoQ %'],['y','YoY %']].map(([k,l]) => `<button data-v="${k}" class="${k==='v'?'on':''}">${l}</button>`).join('')}</div>`);
   if (o.ranges) tools.push(`<div class="seg" data-k="range">${o.ranges.map(([k,l],i) => `<button data-v="${k}" class="${i===o.ranges.length-1?'on':''}">${l}</button>`).join('')}</div>`);
-  tools.push(`<button class="ib" data-z="in" title="Zoom in" aria-label="Zoom in">+</button><button class="ib" data-z="out" title="Zoom out" aria-label="Zoom out">−</button><button class="btn" data-z="reset" title="Reset zoom">Reset</button>`);
+  tools.push(`<span class="ztools"><button class="ib" data-z="in" title="Zoom in" aria-label="Zoom in">+</button><button class="ib" data-z="out" title="Zoom out" aria-label="Zoom out">−</button><button class="ib wide" data-z="reset" title="Reset zoom">Reset</button></span>`);
   const reins = o.reins ? `<div class="reinsboxes"></div>` : '';
   return `<div class="card ccard" id="cc-${o.id}"><div class="chead"><div class="ct">${esc(o.title)}${o.tip ? ' ' + info(o.tip) : ''}</div><div class="ctools">${tools.join('')}</div></div>
     <div class="chartbox" style="${o.h ? 'height:' + o.h + 'px' : ''}"><canvas id="${o.id}" role="img" aria-label="${esc(o.title)}"></canvas></div>
@@ -142,13 +144,16 @@ function cellFmt(v, col) {
   const s = String(v); if (/^(n\/a|n\/m|n\/p)$/i.test(s)) return [s, 'na'];
   return [s, ''];
 }
+/* long notes and source lines sit behind a quiet disclosure */
+function fnote(lines, label = 'Notes & sources', raw = false) { lines = (lines || []).filter(x => x != null && String(x).trim() !== ''); if (!lines.length) return '';
+  return `<details class="fn"><summary>${esc(label)} <span class="fnn">${lines.length}</span></summary><ul class="notes">${lines.map(n => `<li>${raw ? n : linkify(n)}</li>`).join('')}</ul></details>`; }
 function tableBlock(t, o = {}) {
   const id = o.id || ('t' + (++TID)); const cols = t.columns; const qcols = cols.map((c, i) => /^Q[1-4]\s?'?\d{2}/.test(String(c)) ? i : -1).filter(i => i >= 0);
   const lastQ = qcols.length ? qcols[qcols.length - 1] : -1, prevQ = qcols.length > 1 ? qcols[qcols.length - 2] : -1;
   let h = '';
   if (t.title && !o.notitle) h += `<h3>${esc(t.title)}</h3>`;
-  const pre = [...(o.pre || []), ...(t.pre || [])]; if (pre.length) h += `<div class="mut" style="font-size:12px;margin-bottom:8px">${pre.map(linkify).join('<br>')}</div>`;
-  h += `<div class="tbar"><input type="search" placeholder="Filter rows…" aria-label="Filter table rows" data-t="${id}"><button class="btn" data-csv="${id}" title="Download this table as CSV">⬇ CSV</button><span class="tcount" id="${id}-n"></span></div>`;
+  const pre = [...(o.pre || []), ...(t.pre || [])];
+  h += `<div class="tbar"><input type="search" placeholder="Filter" aria-label="Filter table rows" data-t="${id}"><span class="tcount" id="${id}-n"></span><button class="lnk" data-csv="${id}" title="Download this table as CSV">CSV ↓</button></div>`;
   h += `<div class="tblwrap" style="${o.maxh ? 'max-height:' + o.maxh + 'px' : ''}"><table id="${id}" class="${o.wrap ? 'wrapt' : ''} ${o.cls || ''}" data-title="${esc(o.csvname || t.title || o.id || 'table')}"><thead><tr>${cols.map((c, i) => `<th data-i="${i}" class="${i === lastQ ? 'latest' : ''}">${o.headTip && i === 0 ? '' : ''}${esc(c)}</th>`).join('')}</tr></thead><tbody>`;
   t.rows.forEach((r, ri) => {
     if (!Array.isArray(r)) { h += `<tr class="sec"><td colspan="${cols.length}">${esc(r.section)}</td></tr>`; return; }
@@ -161,7 +166,7 @@ function tableBlock(t, o = {}) {
     if (xd) h += `<tr class="xdetail" data-for="${ri}" hidden><td colspan="${cols.length}">${xd}</td></tr>`;
   });
   h += '</tbody></table></div>';
-  const notes = [...(t.notes || []), ...(o.notes || [])]; if (notes.length) h += `<ul class="notes">${notes.map(n => `<li>${linkify(n)}</li>`).join('')}</ul>`;
+  const notes = [...pre, ...(t.notes || []), ...(o.notes || [])]; h += fnote(notes);
   return h;
 }
 function wireTables(root) {
@@ -221,81 +226,25 @@ function tightCols(root) {
       if (!code) continue; head.cells[i].classList.add('code'); rows.forEach(r => r.cells[i].classList.add('code')); if (i === 0) tb.classList.add('c0tight'); } });
 }
 function details(title, body, sm = '', open = false) { return `<details class="x"${open ? ' open' : ''}><summary><span>${title}${sm ? ` <span class="sm">${sm}</span>` : ''}</span></summary><div class="xb">${body}</div></details>`; }
-function xallBtns() { return `<div class="xall"><button class="btn" data-xall="1">Expand all</button> <button class="btn" data-xall="0">Collapse all</button></div>`; }
+function xallBtns() { return `<div class="xall"><button class="lnk" data-xall="1">Expand all</button><button class="lnk" data-xall="0">Collapse all</button></div>`; }
 function wireXall(root) { $$('[data-xall]', root).forEach(b => b.onclick = () => { const scope = b.closest('.xscope') || root; $$('details.x', scope).forEach(d => d.open = b.dataset.xall === '1'); }); }
 const sheet = rx => { for (const n in D.sheets) if (new RegExp(rx, 'i').test(n)) return D.sheets[n]; return null; };
 
-/* ---------------- Yahoo Finance (v8 chart API; browser CORS via allorigins relay, build-time Yahoo fallback) ---------------- */
-const YF_SYM = 'LMND';
-const YF_PAGE = 'https://finance.yahoo.com/quote/LMND/';
-const YF_DATA = 'https://raw.githubusercontent.com/Hugoztian/lmnd-dashboard/yf-data/';
-const yfGet = async (x, unwrap, ms) => { const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), ms || 12000);
-  try { const r = await fetch(x, {cache: 'no-store', signal: ctl.signal}); if (!r.ok) throw new Error('HTTP ' + r.status);
-    let j = await r.json(); if (unwrap) j = JSON.parse(j.contents); const res = j && j.chart && j.chart.result && j.chart.result[0];
-    if (!res || !res.meta) throw new Error('empty'); return res; } finally { clearTimeout(to); } };
-/* 1) Yahoo data mirrored every 5 min (market hours) by a GitHub Action into the yf-data branch; 2) direct relay to Yahoo for a fresher tick when it answers */
-const yfMirror = range => yfGet(YF_DATA + range + '.json?t=' + Math.floor(Date.now() / 60000), false, 8000);
-const yfRelay = (range, interval) => { const q = `https://query1.finance.yahoo.com/v8/finance/chart/${YF_SYM}?range=${range}&interval=${interval}&includePrePost=false&_=${Math.floor(Date.now() / 15000)}`;
-  return Promise.any([yfGet('https://api.allorigins.win/raw?url=' + encodeURIComponent(q)), yfGet('https://api.allorigins.win/get?url=' + encodeURIComponent(q), true)]); };
-async function yfChart(range, interval) {
-  try { return await yfMirror(range); } catch (e) {}
-  try { return await yfRelay(range, interval); } catch (e) { throw new Error('Yahoo Finance unreachable'); }
-}
-const sgt = (t, o) => new Date(t * 1000).toLocaleString('en-SG', Object.assign({timeZone: 'Asia/Singapore'}, o));
-const LQ = {timer: null, last: null};
-function renderYfQuote(m, stale) {
-  const el = $('#tvq'); if (!el) return;
-  const px = m.regularMarketPrice, pc = m.chartPreviousClose != null ? m.chartPreviousClose : m.previousClose;
-  const ch = px - pc, chp = pc ? ch / pc * 100 : 0, cls = ch >= 0 ? 'up' : 'dn', sg = ch >= 0 ? '+' : '';
-  const t = m.regularMarketTime ? sgt(m.regularMarketTime, {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false}) + ' SGT' : '';
-  el.innerHTML = `<a class="yfq" href="${YF_PAGE}" target="_blank" rel="noopener" title="Open LMND on Yahoo Finance">
-    <span class="yfl"><b>LMND</b><span>Lemonade, Inc.</span></span>
-    <span class="yfr"><b>$${fmt(px, 2)}</b><span class="${cls}">${sg}${fmt(ch, 2)} (${sg}${fmt(chp, 2)}%)</span></span></a>
-    <div class="yft">${stale ? 'Updating · ' : ''}${esc(t)}${m.fiftyTwoWeekLow ? ` · 52-wk $${fmt(m.fiftyTwoWeekLow, 2)}–$${fmt(m.fiftyTwoWeekHigh, 2)}` : ''}</div>`;
-}
-function yfFallback(loading) {
-  const el = $('#tvq'), P = D.price; if (!el) return;
-  const ch = P.close - P.prev_close, cls = ch >= 0 ? 'up' : 'dn', sg = ch >= 0 ? '+' : '';
-  el.innerHTML = `<a class="yfq" href="${YF_PAGE}" target="_blank" rel="noopener"><span class="yfl"><b>LMND</b><span>Lemonade, Inc.</span></span>
-    <span class="yfr"><b>$${fmt(P.close, 2)}</b><span class="${cls}">${sg}${fmt(ch, 2)} (${sg}${fmt(ch / P.prev_close * 100, 2)}%)</span></span></a>
-    <div class="yft">${loading ? 'Connecting to Yahoo Finance…' : '<span class="tvfail" style="padding:0">Live Yahoo quote unreachable</span>'} · close ${esc(dlong(P.close_date))} (build-time, Yahoo)</div>`;
-}
-async function pollYf() {
-  const take = m => { if (!m || (LQ.last && LQ.ok && (m.regularMarketTime || 0) < (LQ.last.regularMarketTime || 0))) return; LQ.last = m; LQ.ok = true; renderYfQuote(m); try { localStorage.setItem('lmnd-yfq', JSON.stringify(m)); } catch (e) {} };
-  const jobs = [yfMirror('1d').then(r => take(r.meta)), yfRelay('1d', '5m').then(r => take(r.meta))];
-  const res = await Promise.allSettled(jobs); if (res.some(r => r.status === 'fulfilled')) return true;
-  if (LQ.last && LQ.ok) renderYfQuote(LQ.last); else yfFallback(); return false;
+/* ---------------- TradingView (keyless free widgets, delayed quote) ---------------- */
+const TV_SYM = 'NYSE:LMND';
+function tvEmbed(el, widget, cfg, onFail) {
+  if (!el) return; el.innerHTML = '';
+  const box = document.createElement('div'); box.className = 'tradingview-widget-container'; box.style.height = '100%';
+  const inner = document.createElement('div'); inner.className = 'tradingview-widget-container__widget'; inner.style.height = '100%'; box.appendChild(inner);
+  const sc = document.createElement('script'); sc.type = 'text/javascript'; sc.async = true; sc.src = 'https://s3.tradingview.com/external-embedding/embed-widget-' + widget + '.js'; sc.textContent = JSON.stringify(cfg);
+  let failed = false; const fail = why => { if (failed) return; failed = true; onFail && onFail(why); };
+  sc.onerror = () => fail('script blocked or offline'); box.appendChild(sc); el.appendChild(box);
+  setTimeout(() => { if (!el.querySelector('iframe')) fail('widget did not load within 12 s'); }, 12000);
 }
 function liveQuote() {
-  if (LQ.timer) clearTimeout(LQ.timer);
-  if (!LQ.last) { try { LQ.last = JSON.parse(localStorage.getItem('lmnd-yfq') || 'null'); } catch (e) {} }
-  if (LQ.last) renderYfQuote(LQ.last, true); else yfFallback(true);
-  const loop = async () => { const ok = document.hidden ? true : await pollYf(); LQ.timer = setTimeout(loop, ok ? 30000 : 60000); };
-  loop();
-}
-const YF_RANGES = [['1D', '1d', '5m'], ['5D', '5d', '15m'], ['1M', '1mo', '1d'], ['6M', '6mo', '1d'], ['YTD', 'ytd', '1d'], ['1Y', '1y', '1d'], ['5Y', '5y', '1wk']];
-async function yfLiveChart(rk) {
-  const host = $('#tvchart'); if (!host) return; rk = rk || '1Y';
-  const R = YF_RANGES.find(r => r[0] === rk) || YF_RANGES[5];
-  $$('#yfrng button').forEach(b => b.classList.toggle('on', b.dataset.v === R[0]));
-  const st = $('#yfst'); st.textContent = 'Loading from Yahoo Finance…';
-  let labels, vals, src;
-  try {
-    const r = await yfChart(R[1], R[2]); const q = r.indicators.quote[0].close; const intra = /m$/.test(R[2]);
-    labels = []; vals = [];
-    r.timestamp.forEach((t, i) => { if (q[i] == null) return; labels.push(intra ? sgt(t, {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false}) : sgt(t, {day: 'numeric', month: 'short', year: '2-digit'})); vals.push(+q[i].toFixed(2)); });
-    src = `Yahoo Finance · ${R[0]} · ${intra ? R[2] + ' bars, times in SGT' : R[2] === '1wk' ? 'weekly closes' : 'daily closes'} · updated ${sgt(Date.now() / 1000, {hour: '2-digit', minute: '2-digit', hour12: false})} SGT`;
-  } catch (e) {
-    const h = D.price.hist || []; labels = h.map(x => dlong(x[0])); vals = h.map(x => x[1]);
-    src = `Yahoo Finance live data unreachable (${e.message}); showing build-time Yahoo daily closes to ${dlong(D.price.close_date)}`;
-  }
-  st.textContent = src;
-  if (charts.yfLive) { try { charts.yfLive.destroy(); } catch (e) {} }
-  const up = vals.length > 1 && vals[vals.length - 1] >= vals[0], col = up ? C.up : C.dn;
-  charts.yfLive = new Chart($('#yfcv'), {type: 'line', data: {labels, datasets: [{label: 'LMND ($)', data: vals, borderColor: col, backgroundColor: up ? 'rgba(48,209,88,.10)' : 'rgba(255,69,58,.10)', fill: true, pointRadius: 0, tension: .15, borderWidth: 1.8}]},
-    options: {responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, animation: false,
-      plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => ' $' + fmt(c.parsed.y, 2)}}, zoom: zoomOpts()},
-      scales: {x: {ticks: {maxTicksLimit: 8, autoSkip: true, maxRotation: 0}, grid: {display: false}}, y: {position: 'right', ticks: {callback: v => '$' + v}}}}});
+  const el = $('#tvq'); const P = D.price;
+  tvEmbed(el, 'single-quote', {symbol: TV_SYM, width: '100%', isTransparent: true, colorTheme: isDark() ? 'dark' : 'light', locale: 'en'}, why => {
+    el.style.height = 'auto'; el.innerHTML = `<div class="tvfail" title="${esc(why)}">Live quote could not load in this browser.</div><div style="font-size:24px;font-weight:700">$${fmt(P.close, 2)}</div><div class="mut" style="font-size:11px">Last close ${dlong(P.close_date)} (build-time)</div>`; });
 }
 /* trim leading quarters where every series is empty */
 const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.forEach(d => { const j = (d.data || []).findIndex(v => v != null && !isNaN(v)); if (j >= 0 && j < i0) i0 = j; }); if (i0 < n) i0 = Math.max(i0, n - 8); /* keep at most the latest 8 quarters */
@@ -303,11 +252,11 @@ const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.for
 /* ---------------- hero ---------------- */
 function hero() {
   const H = D.hero, P = D.price, asof = `${H.quarter} · as of ${H.period_end_long}`;
-  $('#updated').innerHTML = `Last updated <b>${esc(D.meta.built_sgt)}</b> · Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · Market data: close ${esc(dlong(P.close_date))}, live price via Yahoo Finance`;
+  $('#updated').innerHTML = `Company data through <b>${esc(H.quarter)}</b> (quarter ended ${esc(H.period_end_long)}) · market data close ${esc(dlong(P.close_date))} · live price via TradingView · updated ${esc(D.meta.built_sgt)}`;
   const ifp = ser('in-?force premium', 'kpi'), cu = ser('^customers', 'kpi'), pp = ser('premium per customer', 'kpi');
-  const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><span class="asof">${esc(asof)}</span></div>`;
+  const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${pct(ch)} YoY</div><div class="s">${s}</div><div class="asof">${esc(asof)}</div></div>`;
   $('#hero4').innerHTML = [
-    `<div class="hcard live"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND) quote from Yahoo Finance, refreshed every 30 seconds while this page is open. Yahoo quotes for NYSE stocks are near real-time during market hours. If Yahoo cannot be reached, the last build-time Yahoo close is shown instead.')}</div><div class="tvq" id="tvq"></div><div class="cap" style="padding:0 4px">NYSE: LMND · auto-updating every 30 s · <a href="https://finance.yahoo.com/quote/LMND/" target="_blank" rel="noopener">Yahoo Finance</a></div></div>`,
+    `<div class="hcard live"><div class="l" style="padding:2px 4px 0"><i class="livedot"></i> Live stock price ${info('Live price', 'Lemonade (NYSE: LMND) quote from the free TradingView widget. It updates automatically but is delayed (Cboe/NYSE delayed feed); free widgets cannot show real-time US stock data.')}</div><div class="tvq" id="tvq"></div><div class="cap" style="padding:0 4px">NYSE: LMND · delayed quote · TradingView</div></div>`,
     card(2, 'In-force premium', 'IFP', '$' + fmt(H.ifp / 1000, 2) + 'b', H.ifp_yoy, `$${fmt(H.ifp, 1)}m · ${pct(H.ifp_qoq)} QoQ · year ago $${fmt(H.ifp_prev_year, 1)}m`, 'spIfp'),
     card(3, 'Customers', 'Customers', fmt(H.customers / 1e6, 2) + 'm', H.cust_yoy, `${fmt(H.customers)} · ${pct(H.cust_qoq)} QoQ`, 'spCu'),
     card(4, 'Premium per customer', 'PPC', '$' + fmt(H.ppc), H.ppc_yoy, `${pct(H.ppc_qoq)} QoQ · year ago $${fmt(H.ppc_prev_year)}`, 'spPpc')].join('');
@@ -316,7 +265,7 @@ function hero() {
   $('#hero2').innerHTML = [
     Y ? `<div class="mini" title="Year-to-date: latest close in the build vs the ${esc(Y.base_date)} close (last trading day of 2025)"><div class="l">LMND year-to-date</div><div class="v ${pcls(Y.pct)}">${pct(Y.pct)}</div><div class="s">$${fmt(Y.price, 2)} (${esc(dlong(Y.asof))}) vs $${fmt(Y.base, 2)} close ${esc(dlong(Y.base_date))} · as of build ${esc(D.meta.built_sgt)}</div></div>` : `<div class="mini"><div class="l">LMND year-to-date</div><div class="v na">n/a</div></div>`,
     `<div class="mini"><div class="l">Market cap / EV ${info('Price/IFP')}</div><div class="v">$${fmt(P.mcap_b, 2)}b / $${fmt(P.ev_b, 2)}b</div><div class="s">Close ${esc(dlong(P.close_date))} · 52-wk $${fmt(P.lo52, 2)}–$${fmt(P.hi52, 2)}</div></div>`,
-    `<div class="mini"><div class="l">Next earnings (Q3 2026)</div><div class="v">~${esc(dlong(D.meta.next_earnings))}</div><div class="s">${dd(D.meta.next_earnings)} · company guide on Guidance tab</div></div>`,
+    `<div class="mini"><div class="l">Next earnings (Q3 2026)</div><div class="v">~${esc(dlong(D.meta.next_earnings))}</div><div class="s">${dd(D.meta.next_earnings)} · <a href="#street/guidance">company guide</a></div></div>`,
     `<div class="mini"><div class="l">Investor Day</div><div class="v">${esc(dlong(D.meta.investor_day))}</div><div class="s">${dd(D.meta.investor_day)} · New York</div></div>`].join('');
   liveQuote();
 }
@@ -357,15 +306,15 @@ function overview() {
   const paras = arr => arr.filter(p => !p.startsWith('©')).map(p => { const m = p.match(/^[•\s]*([^:]{3,70}):\s(.+)$/); return m ? `<p><b>${esc(m[1])}:</b> ${esc(m[2])}</p>` : `<p>${esc(p.replace(/^•\s*/, ''))}</p>`; }).join('');
   const ph = P.hist || [];
   $('#s-overview').innerHTML = `<h2>Overview</h2>
-  <div class="card verdict" style="margin-bottom:16px">${N.verdict ? `<b>Verdict:</b> ${esc(N.verdict)}` : ''}</div>
-  <div class="card" style="margin-bottom:16px"><div class="qpick"><b>KPI cards for quarter</b> <button class="ib" id="qprev" aria-label="Previous quarter">‹</button><select id="qsel" aria-label="Pick quarter">${Q.map((q, i) => `<option value="${i}" ${i === LI ? 'selected' : ''}>${esc(q)} (ended ${esc(dlong(D.meta.period_end[i]))})</option>`).join('')}</select><button class="ib" id="qnext" aria-label="Next quarter">›</button><span class="mut" style="font-size:12px">The hero above always shows the latest quarter (${esc(H.quarter)}).</span></div>
+  <p class="lead">${N.verdict ? `<b>Verdict.</b> ${esc(N.verdict)}` : ''}</p>
+  <div class="blk"><div class="qpick"><b>KPI cards for quarter</b> <button class="ib" id="qprev" aria-label="Previous quarter">‹</button><select id="qsel" aria-label="Pick quarter">${Q.map((q, i) => `<option value="${i}" ${i === LI ? 'selected' : ''}>${esc(q)} (ended ${esc(dlong(D.meta.period_end[i]))})</option>`).join('')}</select><button class="ib" id="qnext" aria-label="Next quarter">›</button><span class="mut" style="font-size:12px">The cards at the top always show the latest quarter (${esc(H.quarter)}).</span></div>
     <div class="grid g4" id="kpicards"></div></div>
   <div class="grid g2" style="margin-bottom:16px">
     <div class="card"><h3>Key numbers (with dates)</h3>${tableBlock({columns: ['Metric', 'Value', 'As of'], rows: keyRows}, {id: 'tKey', csvname: 'Key numbers', terms: true, wrap: true, cls: 'keyt'})}</div>
     <div class="card"><h3>Catalysts & dates</h3>${cats}<ul class="notes"><li>Q3 2026 company guide: ${esc(((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^Q3 2026 guide \(Q2'26 letter\):\s*/, ''))}</li></ul></div></div>
   <div class="grid g3" style="margin-bottom:16px">${exKeys.map(k => `<div class="card"><h3>${esc(k)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(ex[k])}</div></div>`).join('')}</div>
   <div style="margin-bottom:16px">
-    <div class="card"><div class="yfhead"><h3 style="margin:0">LMND live chart <span class="mut" style="font-size:12px;font-weight:400">· NYSE: LMND via <a href="https://finance.yahoo.com/quote/LMND/" target="_blank" rel="noopener">Yahoo Finance</a></span></h3><div class="seg" id="yfrng">${YF_RANGES.map(r => `<button data-v="${r[0]}">${r[0]}</button>`).join('')}</div></div><div class="tvchart" id="tvchart"><canvas id="yfcv"></canvas></div><div class="cap mut" id="yfst" style="font-size:11px;margin-top:6px"></div></div></div>
+    <div class="card"><h3 style="margin-top:0">LMND live chart <span class="mut" style="font-size:12px;font-weight:400">${TV_SYM} · TradingView · delayed</span></h3><div class="tvchart" id="tvchart"></div></div></div>
   <div class="xscope">${xallBtns()}
   ${details('Business overview', paras(sec('business').paras), 'model, Giveback, reinsurance, growth financing')}
   ${details('Latest quarter, guidance & path to profit', paras([...sec('latest quarter').paras, ...sec('latest quarter').subs.flatMap(x => x.paras)]), H.quarter)}
@@ -375,13 +324,15 @@ function overview() {
   const sel = $('#qsel'); const set = i => { i = Math.max(0, Math.min(LI, i)); sel.value = i; kpiCards(i); };
   sel.onchange = () => set(+sel.value); $('#qprev').onclick = () => set(+sel.value - 1); $('#qnext').onclick = () => set(+sel.value + 1);
   kpiCards(LI);
-  $$('#yfrng button').forEach(b => b.onclick = () => yfLiveChart(b.dataset.v)); yfLiveChart('1Y');
+  tvEmbed($('#tvchart'), 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: isDark() ? 'dark' : 'light', style: '1', locale: 'en',
+    backgroundColor: isDark() ? 'rgba(28,28,30,1)' : 'rgba(255,255,255,1)', gridColor: isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)', allow_symbol_change: false, hide_side_toolbar: true, calendar: false, support_host: 'https://www.tradingview.com'},
+    why => { $('#tvchart').innerHTML = `<div class="tvfail">Live chart could not load (${esc(why)}).</div>`; $('#tvchart').style.height = 'auto'; });
 }
 /* ---------------- Insurance KPIs ---------------- */
 const QL = Q.map(qshort);
 function kpis() {
   const t = sheet('insurance kpi'); const k = n => ser(n, 'kpi'), i = n => ser(n, 'is');
-  $('#s-kpis').innerHTML = `<h2>Insurance KPIs <span class="mut" style="font-size:16px;font-weight:500">· ${esc(Q[0])} – ${esc(Q[LI])}</span></h2>
+  $('#s-kpis').innerHTML = `<h2>Insurance KPIs <span class="mut">${esc(Q[0])} – ${esc(Q[LI])}</span></h2>
   ${charts2([{id: 'kIfp', title: 'In-force premium vs revenue vs GEP ($m)', tip: 'IFP', growth: 1, reins: 1}, {id: 'kCu', title: 'Customers (m) & premium per customer ($)', tip: 'PPC', growth: 1},
     {id: 'kLr', title: 'Loss ratios (%)', tip: 'GLR'}, {id: 'kRe', title: 'Reinsurance effect: ceded vs net earned premium ($m)', tip: 'Quota share', reins: 1},
     {id: 'kMix', title: 'IFP by product / geography ($m)', tip: 'IFP', growth: 1}, {id: 'kGlrP', title: 'Gross loss ratio by product (%)', tip: 'GLR'},
@@ -405,7 +356,7 @@ function kpis() {
 /* ---------------- statements ---------------- */
 function stmt(key, sid, title, specs) {
   const sh = sheet('^' + key.toUpperCase() + '\\b'); const t = sh.tables[0];
-  $('#s-' + sid).innerHTML = `<h2>${title} <span class="mut" style="font-size:16px;font-weight:500">· 8 quarters, ${esc(Q[0])} – ${esc(Q[LI])} ($m)</span></h2>${charts2(specs)}
+  $('#s-' + sid).innerHTML = `<h2 class="bh">${title} <span class="mut">8 quarters, ${esc(Q[0])} – ${esc(Q[LI])} ($m)</span></h2>${charts2(specs)}
    ${tableBlock({title: `${title} — 8 quarters`, columns: t.columns, rows: t.rows, notes: t.notes}, {id: 't' + sid, colorLatest: 1, pre: sh.pre})}`;
   specs.forEach(wireCard);
 }
@@ -431,8 +382,8 @@ function cfTab() { const c = n => ser(n, 'cf');
 function guidance() {
   const sh = sheet('guidance'); const t = sh.tables[0]; const rows = t.rows.filter(Array.isArray); const col = n => t.columns.findIndex(c => new RegExp(n, 'i').test(c));
   const g = n => rows.map(r => typeof r[col(n)] === 'number' ? r[col(n)] : null); const lab = rows.map(r => r[0]);
-  $('#s-guidance').innerHTML = `<h2>Guidance vs Actual</h2>
-   <div class="card verdict" style="margin-bottom:16px">${esc(t.notes[0] || '')}</div>
+  $('#blk-guidance').innerHTML = `<h2 class="bh">Guidance vs Actual</h2>
+   <p class="lead sm">${esc(t.notes[0] || '')}</p>
    ${charts2([{id: 'gIfp', title: 'IFP: guidance range vs actual ($m)', tip: 'IFP'}, {id: 'gRev', title: 'Revenue: guidance midpoint vs actual ($m)', tip: 'Revenue', reins: 1}, {id: 'gEb', title: 'Adj. EBITDA: guidance midpoint vs actual ($m)', tip: 'Adj. EBITDA'}, {id: 'gGep', title: 'GEP: guidance midpoint vs actual ($m)', tip: 'GEP'}])}
    ${tableBlock({title: 'Quarter by quarter', columns: t.columns, rows: t.rows, notes: t.notes.slice(1)}, {id: 'tGva', pre: sh.pre})}`;
   const range = (lo, hi, act, l1) => ({labels: lab, datasets: [{type: 'bar', label: 'Guidance range', data: g(lo).map((v, i) => v == null ? null : [v, g(hi)[i]]), backgroundColor: C.band, barPercentage: .5, keep: 1},
@@ -448,10 +399,10 @@ function guidance() {
 function street() {
   const sh = sheet('wall street'); const W = wsMap(); const P = D.price;
   const pts = String(W['PT low / avg / median / high'] || '').match(/[\d.]+/g) || [];
-  $('#s-street').innerHTML = `<h2>Wall Street</h2>
+  $('#blk-street').innerHTML = `<h2 class="bh">Wall Street</h2>
    <div class="grid g4" style="margin-bottom:16px">${Object.entries(W).map(([k, v]) => `<div class="card kpi"><div class="l">${esc(k)}</div><div class="v" style="font-size:20px">${esc(v)}</div></div>`).join('')}</div>
    ${charts2([{id: 'wPt', title: 'Analyst price targets vs last close ($)'}, {id: 'wHist', title: 'LMND close vs average price target ($)'}])}
-   ${sh.tables.map((t, i) => tableBlock(t, {id: 'tWs' + i})).join('')}`;
+   ${sh.tables.map((t, i) => i === 0 ? details(esc(t.title || 'Consensus table'), tableBlock(t, {id: 'tWs' + i, notitle: 1}), 'same figures as the cards above, as a table') : tableBlock(t, {id: 'tWs' + i})).join('')}`;
   const labels = ['PT low', 'PT median', 'PT average', 'PT high', `Close ${dlong(P.close_date)}`];
   const vals = [+pts[0], +pts[2], +pts[1], +pts[3], P.close];
   wireCard({id: 'wPt', unit: '$', build: () => ({labels, datasets: [{type: 'bar', label: 'Price ($)', data: vals, backgroundColor: vals.map((v, i) => i === 4 ? C.acc : C.band), keep: 1}], scales: {y: {beginAtZero: true, ticks: {callback: v => '$' + v}}}})});
@@ -469,15 +420,15 @@ function f4table(rows, id) {
 function insiders() {
   const sh = sheet('ownership|form ?4'); const inst = sh.tables.find(t => /institution/i.test(t.title || '')) || sh.tables[0]; const sum = sh.tables.find(t => /insider/i.test(t.title || '')) || sh.tables[1];
   const sr = sum.rows.filter(Array.isArray); const ci = n => sum.columns.findIndex(c => new RegExp(n, 'i').test(c));
-  $('#s-insiders').innerHTML = `<h2>Insiders & ownership <span class="mut" style="font-size:16px;font-weight:500">· Form 4</span></h2>
-   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:12px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
+  $('#s-insiders').innerHTML = `<h2>Insiders & ownership <span class="mut">Form 4</span></h2>
+   ${fnote(sh.pre, 'About this data')}
    ${charts2([{id: 'nSold', title: 'Shares sold by insider and type', tip: '10b5-1'}, {id: 'nInst', title: 'Top institutional holders (% of shares)'}])}
    ${tableBlock(sum, {id: 'tIns', expand: r => { const rs = f4rows(r[0]); return rs.length ? `<div style="font-size:12.5px;margin-bottom:6px"><b>${rs.length} Form 4 lines for ${esc(r[0])}</b> · click the row again to collapse</div>` + `<div class="tblwrap" style="max-height:320px"><table class="inner"><thead><tr><th>Date</th><th>Code</th><th>Type</th><th>Shares</th><th>Price</th><th>Owned after</th><th>Footnote</th></tr></thead><tbody>${rs.map(x => `<tr><td>${esc(x.tdate)}</td><td>${esc(x.code)}</td><td>${f4pill(x)}</td><td>${fmt(x.shares)}</td><td>${x.price ? '$' + fmt(x.price, 2) : ''}</td><td>${fmt(x.owned_after)}</td><td class="wrap">${esc(x.footnotes || x.nature || '')}</td></tr>`).join('')}</tbody></table></div>` : '<span class="mut">No parsed Form 4 lines in the window.</span>'; }, notes: ['Click an insider row to expand their individual Form 4 transactions.']})}
-   ${tableBlock(inst, {id: 'tInst'})}
+   ${details(esc(inst.title || 'Top institutional holders'), tableBlock(inst, {id: 'tInst', notitle: 1}), 'table')}
    <h3>All Form 4 transactions (${D.form4.length} lines)</h3>
    <div class="chips" id="f4chips">${['All', 'Sales', '10b5-1 sale', 'Non-plan sale', 'Tax sale', 'Grant / award', 'Option exercise / RSU conversion', 'Gift'].map((c, i) => `<button class="btn ${i === 0 ? 'on' : ''}" data-f="${esc(c)}">${esc(c)}</button>`).join('')}</div>
    ${f4table(D.form4, 'tF4')}
-   <ul class="notes"><li>Codes: ${Object.entries(CODES).map(([k, v]) => `<b>${k}</b> ${esc(v)}`).join(' · ')}. 10b5-1 = plan checkbox or footnote; tax sale = shares sold to cover RSU tax withholding.</li></ul>`;
+   ${fnote([`Codes: ${Object.entries(CODES).map(([k, v]) => `<b>${k}</b> ${esc(v)}`).join(' · ')}. 10b5-1 = plan checkbox or footnote; tax sale = shares sold to cover RSU tax withholding.`], 'Form 4 codes', true)}`;
   wireCard({id: 'nSold', build: () => ({labels: sr.map(r => r[0].split(' ').pop()), stacked: true, datasets: [{type: 'bar', label: '10b5-1 plan', data: sr.map(r => r[ci('10b5-1')]), backgroundColor: C.acc}, {type: 'bar', label: 'Non-plan (ex tax)', data: sr.map(r => (r[ci('non-plan')] || 0) - (r[ci('tax')] || 0)), backgroundColor: C.y}, {type: 'bar', label: 'Tax withholding', data: sr.map(r => r[ci('tax')]), backgroundColor: C.p}], scales: {x: {stacked: true}, y: {stacked: true}}}), unit: 'sh'});
   const ir = inst.rows.filter(Array.isArray);
   wireCard({id: 'nInst', unit: '%', build: () => ({labels: ir.map(r => r[0]), datasets: [{type: 'bar', label: '% held', data: ir.map(r => r[1]), backgroundColor: C.acc}]})});
@@ -489,7 +440,7 @@ function insiders() {
 function valuation() {
   const sh = sheet('valuation'); const t = sh.tables[0]; const rows = t.rows.filter(Array.isArray); const ci = n => t.columns.findIndex(c => new RegExp(n, 'i').test(c));
   const N = D.narrative;
-  $('#s-valuation').innerHTML = `<h2>Valuation & peers</h2>
+  $('#blk-valuation').innerHTML = `<h2 class="bh">Valuation & Peers</h2>
    ${charts2([{id: 'vPs', title: 'P/S (TTM) and Price / IFP (x)', tip: 'Price/IFP'}, {id: 'vMc', title: 'Market cap vs EV ($b)'}])}
    ${tableBlock({title: sh.title, columns: t.columns, rows: t.rows, notes: t.notes}, {id: 'tVal', terms: false})}
    <div class="card" style="margin-top:16px"><h3>Valuation view</h3>${N.valuation.map(p => `<p style="font-size:13.5px">${esc(p)}</p>`).join('')}</div>`;
@@ -497,16 +448,18 @@ function valuation() {
   wireCard({id: 'vPs', unit: 'x', build: () => ({labels: lab, datasets: [{type: 'bar', label: 'P/S (TTM)', data: rows.map(r => n(r, ci('p/s'))), backgroundColor: lab.map(l => l === 'LMND' ? C.acc : C.acc2)}, {type: 'bar', label: 'Price / IFP', data: rows.map(r => n(r, ci('price/ifp'))), backgroundColor: C.g}]})});
   wireCard({id: 'vMc', unit: '$b', build: () => ({labels: lab, datasets: [{type: 'bar', label: 'Market cap ($b)', data: rows.map(r => n(r, ci('mkt cap'))), backgroundColor: C.acc}, {type: 'bar', label: 'EV ($b)', data: rows.map(r => n(r, ci('^ev'))), backgroundColor: C.r}], scales: {y: {type: 'logarithmic', title: {display: true, text: 'log scale'}}}})});
 }
-/* ---------------- Risks / bull-bear ---------------- */
-function risks() {
-  const N = D.narrative; const comp = (N.sections.find(s => /competitive/i.test(s.h)) || {paras: []}).paras;
-  $('#s-risks').innerHTML = `<h2>Risks / Bull–Bear</h2>
-   <div class="bb" style="margin-bottom:16px"><div class="card bull"><h3>Bull case</h3><div style="font-size:13.5px;line-height:1.55">${esc(N.bull)}</div></div><div class="card bear"><h3>Bear case</h3><div style="font-size:13.5px;line-height:1.55">${esc(N.bear)}</div></div></div>
-   <div class="card" style="margin-bottom:16px"><h3>Top risks (summary)</h3><div style="font-size:13.5px;line-height:1.55">${esc(N.exec['Top risks'] || '')}</div></div>
-   <div class="xscope"><h3>Risk details <span class="mut" style="font-size:13px;font-weight:400">· ${N.risks.length} risks, click to expand</span></h3>${xallBtns()}
-   ${N.risks.map((r, i) => details(`${i + 1}. ${esc(r.title)}`, esc(r.detail), '', false)).join('')}
-   <h3>Competitive position & moat</h3>${comp.map((p, i) => { const m = p.match(/^([^:]{3,40}):\s(.+)$/); return details(esc(m ? m[1] : 'Competitive position'), esc(m ? m[2] : p)); }).join('')}
-   <h3>What to monitor</h3>${details('Conclusion & monitoring checklist', N.conclusion.map(p => `<p>${esc(p)}</p>`).join(''), '', true)}</div>`;
+/* ---------------- Street, Guidance & Valuation (one scrolling tab) ---------------- */
+const STREETB = [['street', 'Wall Street', () => street()], ['guidance', 'Guidance vs Actual', () => guidance()], ['valuation', 'Valuation & Peers', () => valuation()]];
+function streetTab() {
+  $('#s-street').innerHTML = `<h2>Street, Guidance & Valuation</h2>
+   <div class="subtabs jump" id="stjump">${STREETB.map(([k, l]) => `<button data-v="${k}">${esc(l)}</button>`).join('')}</div>
+   ${STREETB.map(([k]) => `<div class="sblk" id="blk-${k}"></div>`).join('')}`;
+  STREETB.forEach(([k, , fn]) => { try { fn(); } catch (e) { console.error('render ' + k, e); $('#blk-' + k).insertAdjacentHTML('beforeend', `<div class="tvfail">This block could not render: ${esc(e.message)}</div>`); } });
+  $$('#stjump button').forEach(b => b.onclick = () => { const h = '#street/' + b.dataset.v; if (location.hash === h) streetJump(b.dataset.v); else location.replace(h); });
+}
+function streetJump(k, smooth = true) {
+  $$('#stjump button').forEach(b => b.classList.toggle('on', b.dataset.v === k));
+  const el = $('#blk-' + k); if (el && k !== 'street') el.scrollIntoView({behavior: smooth ? 'smooth' : 'auto', block: 'start'}); else if (el) window.scrollTo({top: $('#s-street').getBoundingClientRect().top + scrollY - 70, behavior: smooth ? 'smooth' : 'auto'});
 }
 /* ---------------- Sources ---------------- */
 function sources() {
@@ -517,7 +470,7 @@ function sources() {
    ${details('Report sources', `<ul class="lst">${rep.map(p => `<li>${linkify(p.replace(/^•\s*/, ''))}</li>`).join('')}</ul>`, `${rep.length} items`)}
    ${details('Reinsurance restructuring sources', `<ul class="lst">${D.reins.map(r => `<li><b>${esc(dlong(r.date))} — ${esc(r.title)}:</b> ${esc(r.source)}</li>`).join('')}</ul>`, `${D.reins.length} events`)}
    ${details('Workbook notes & disclaimer', `<ul class="lst">${(cover ? cover.pre : []).filter(p => !/^\d+\.|^Sheets:/.test(p)).map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`)}
-   ${details('Data build', `<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price and live chart: Yahoo Finance chart API, refreshed every 30 s in the browser.</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`)}
+   ${details('Data build', `<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price: TradingView free widget (delayed quote).</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`)}
    ${details('Metric definitions', `<ul class="lst">${Object.entries(D.glossary).map(([k, v]) => `<li><b>${esc(k)}</b> — ${esc(v)}</li>`).join('')}</ul>`)}</div>`;
 }
 
@@ -543,13 +496,13 @@ function history() {
   const evs = D.reins;
   const rows = L.map((q, i) => [q, Sx[kI][i], yI[i], Sx[kR][i], yR[i], ...(CR ? [ces(q)] : []), reinsAt(q) ? reinsAt(q).title : '']);
   const hNote = (D.sheets[H.sheet].tables[0] || {notes: []}).notes;
-  el.innerHTML = `<h2>IFP & Revenue History <span class="mut" style="font-size:16px;font-weight:500">· ${esc(L[0])} – ${esc(L[n])}, every quarter</span></h2>
+  el.innerHTML = `<h2>IFP & Revenue History <span class="mut">${esc(L[0])} – ${esc(L[n])}, every quarter</span></h2>
    <div class="grid g4" style="margin-bottom:16px">
     <div class="card kpi"><div class="l">In-force premium, ${esc(L[n])} ${info('IFP')}</div><div class="v">${money(Sx[kI][n])}</div><div class="s"><span class="${pcls(yI[n])}">${pct(yI[n])}</span> YoY · ${esc(L[0])}: ${money(Sx[kI][0])} (${fmt(Sx[kI][n] / Sx[kI][0], 1)}×)</div></div>
     <div class="card kpi"><div class="l">Revenue, ${esc(L[n])} ${info('Revenue')}</div><div class="v">${money(Sx[kR][n])}</div><div class="s"><span class="${pcls(yR[n])}">${pct(yR[n])}</span> YoY · ${esc(L[0])}: ${money(Sx[kR][0])} (${fmt(Sx[kR][n] / Sx[kR][0], 1)}×)</div></div>
     <div class="card kpi"><div class="l">Gap: revenue YoY − IFP YoY, ${esc(L[n])} ${info('Quota share')}</div><div class="v">${yR[n] != null && yI[n] != null ? (yR[n] - yI[n] >= 0 ? '+' : '−') + fmt(Math.abs(yR[n] - yI[n]), 1) + 'pp' : 'n/a'}</div><div class="s">Revenue outgrows IFP while the quota-share cession falls</div></div>
     <div class="card kpi"><div class="l">Annotated events ${info('Quota share')}</div><div class="v">${evs.length}</div><div class="s">Reinsurance, Metromile and lapping: ${evs.map(r => esc(r.quarter.replace(/^Q(\d) 20(\d\d)$/, "Q$1'$2"))).join(' · ')}. Click a chart marker.</div></div></div>
-   <div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">Reinsurance restructurings, Metromile & lapping <span class="mut" style="font-size:12.5px;font-weight:400">· also marked on both charts</span></h3><div class="grid g3">${evs.map(r => `<div><div class="pill ${r.kind === 'reins' ? 'acc' : 'other'}">${esc(dlong(r.date))} · ${esc(r.quarter)}</div><h4 style="margin:6px 0 4px">${esc(r.title)}</h4><div style="font-size:13px;line-height:1.55">${esc(r.detail)}</div><div class="mut" style="font-size:11.5px;margin-top:4px">Source: ${esc(r.source)}</div></div>`).join('')}</div>${hNote.length ? `<ul class="notes">${hNote.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
+   <div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">Reinsurance restructurings, Metromile & lapping <span class="mut" style="font-size:12.5px;font-weight:400">also marked on both charts</span></h3><div class="grid g3">${evs.map(r => `<div><div class="pill ${r.kind === 'reins' ? 'acc' : 'other'}">${esc(dlong(r.date))} · ${esc(r.quarter)}</div><h4 style="margin:6px 0 4px">${esc(r.title)}</h4><div style="font-size:13px;line-height:1.55">${esc(r.detail)}</div><div class="mut" style="font-size:11.5px;margin-top:4px">Source: ${esc(r.source)}</div></div>`).join('')}</div>${fnote(hNote)}</div>
    ${charts2([{id: 'hAbs', title: 'In-force premium vs quarterly revenue ($m)', tip: 'IFP', growth: 1, reins: 1, ranges: [['8', '8Q'], ['12', '3Y'], ['all', '2020+ (all)']]}, {id: 'hYoy', title: 'YoY growth: IFP vs revenue (%)', tip: 'Revenue', reins: 1, ranges: [['8', '8Q'], ['12', '3Y'], ['all', '2020+ (all)']]}])}
    ${tableBlock({title: 'Quarter by quarter', columns: ['Quarter', 'IFP ($m)', 'IFP YoY %', 'Revenue ($m)', 'Revenue YoY %', ...(CR ? ['Quota share cession'] : []), 'Event'], rows}, {id: 'tHist', terms: false, maxh: 720, notes: [`Source: ${H.sheet} sheet${CR ? ' (IFP, revenue) and Operating Metrics sheet (cession)' : ''}. Highlighted rows = annotated event quarters (reinsurance, Metromile, lapping).`]})}`;
   $$('#tHist tbody tr').forEach(r => { if (reinsAt(r.cells[0].textContent)) { r.style.boxShadow = 'inset 3px 0 0 var(--acc)'; [...r.cells].forEach(c => c.style.background = 'var(--accsoft)'); } });
@@ -566,14 +519,14 @@ function highlights() {
   const items = t.rows.filter(Array.isArray).map(r => ({q: qnorm(r[iQ]), r})).sort((a, b) => qkey(b.q) - qkey(a.q));
   const bullets = s => { const parts = String(s || '').split(/\n|(?:^|\s)•\s/).map(x => x.replace(/^•\s*/, '').trim()).filter(Boolean); return `<ul class="lst">${parts.map(p => `<li>${linkify(p)}</li>`).join('')}</ul>`; };
   const CH = ['Reinsurance', 'Pet', 'Car', 'Europe', 'AI', 'Metromile', 'EBITDA', 'Retention'];
-  el.innerHTML = `<h2>Quarterly Highlights <span class="mut" style="font-size:16px;font-weight:500">· management commentary, ${esc(items[items.length - 1].q)} – ${esc(items[0].q)}</span></h2>
-   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
+  el.innerHTML = `<h2>Quarterly Highlights <span class="mut">management commentary, ${esc(items[items.length - 1].q)} – ${esc(items[0].q)}</span></h2>
+   ${fnote(sh.pre, 'About this data')}
    <div class="tbar"><input type="search" id="hlq" placeholder="Search commentary (e.g. pet, car, reinsurance)…" aria-label="Search highlights"><span class="tcount" id="hln"></span></div>
    <div class="chips" id="hlchips">${CH.map(c => `<button class="btn" data-v="${c}">${c}</button>`).join('')}</div>
    <div class="xscope" id="hlwrap">${xallBtns()}${items.map((it, k) => { const r = it.r; const re = reinsAt(it.q);
      const sm = [iDt >= 0 && r[iDt] ? 'letter ' + r[iDt] : '', iI >= 0 && r[iI] != null ? `IFP ${money(r[iI])}${iIy >= 0 && r[iIy] != null ? ' (' + pct(r[iIy], 0) + ')' : ''}` : '', iR >= 0 && r[iR] != null ? `revenue ${money(r[iR])}${iRy >= 0 && r[iRy] != null ? ' (' + pct(r[iRy], 0) + ')' : ''}` : ''].filter(Boolean).join(' · ');
      return details(`${esc(it.q)}${re ? ' <span class="pill acc">⟲ reinsurance</span>' : ''}`, (re ? `<div class="reinsbox on"><h4>${esc(re.title)}</h4>${esc(re.detail)}</div>` : '') + bullets(r[iTxt]), esc(sm), k === 0); }).join('')}</div>
-   ${(t.notes || []).length ? `<ul class="notes">${t.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
+   ${fnote(t.notes)}`;
   const upd = () => { const q = $('#hlq').value.trim().toLowerCase(); let v = 0; $$('#hlwrap details.x').forEach(d => { const hit = !q || d.innerText.toLowerCase().includes(q) || d.querySelector('.xb').textContent.toLowerCase().includes(q); d.hidden = !hit; if (hit) v++; if (q && hit) d.open = true; }); $('#hln').textContent = `${v} of ${items.length} quarters`;
     $$('#hlchips button').forEach(b => b.classList.toggle('on', b.dataset.v.toLowerCase() === q)); };
   $('#hlq').addEventListener('input', upd); $$('#hlchips button').forEach(b => b.onclick = () => { const i = $('#hlq'); i.value = i.value.toLowerCase() === b.dataset.v.toLowerCase() ? '' : b.dataset.v; upd(); }); upd();
@@ -592,11 +545,11 @@ function rollout() {
       e: iE >= 0 ? String(r[iE] ?? '') : all, letter: iL >= 0 ? String(r[iL] ?? '') : '', x: t.columns.map((c, i) => [c, r[i]]).filter(([c, v], i) => v != null && v !== '' && i !== iE && !/^#$/.test(c))}; });
   const uniq = a => [...new Set(a.filter(Boolean))];
   const Ps = uniq(rows.map(r => r.p)), Gs = uniq(rows.map(r => r.g));
-  el.innerHTML = `<h2>Product Rollout <span class="mut" style="font-size:16px;font-weight:500">· ${rows.length} milestones</span></h2>
-   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
-   <div class="mut" style="font-size:12px">Product line</div><div class="chips" id="roP"><button class="btn on" data-v="">All</button>${Ps.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)} <span class="mut">${rows.filter(r => r.p === p).length}</span></button>`).join('')}</div>
-   <div class="mut" style="font-size:12px">Geography</div><div class="chips" id="roG"><button class="btn on" data-v="">All</button>${Gs.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)} <span class="mut">${rows.filter(r => r.g === p).length}</span></button>`).join('')}</div>
-   <div class="grid g2"><div class="card"><h3 style="margin-top:0">Timeline <span class="mut" style="font-size:12px;font-weight:400" id="ron"></span></h3><div class="mut" style="font-size:12px;margin-bottom:8px">Click or tap an item for the source letter and notes. <button class="btn" id="roAll">Expand all</button></div><div class="tl" id="rotl">${[...rows].reverse().map(r => `<div class="tli" data-p="${esc(r.p)}" data-g="${esc(r.g)}" tabindex="0" role="button" aria-expanded="false"><div class="w">${esc(r.d)} · <span class="pill acc">${esc(r.p)}</span> <span class="pill other">${esc(r.g)}</span></div><div class="p">${esc(r.name)}${r.name && r.e ? ': ' : ''}<span style="font-weight:400">${esc(r.e)}</span></div><div class="d">${r.x.map(([c, v]) => `<div><b>${esc(c)}:</b> ${linkify(String(v))}</div>`).join('')}</div></div>`).join('')}</div></div>
+  el.innerHTML = `<h2>Product Rollout <span class="mut">${rows.length} milestones</span></h2>
+   ${fnote(sh.pre, 'About this data')}
+   <div class="flab">Product line</div><div class="chips" id="roP"><button class="btn on" data-v="">All</button>${Ps.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)} <span class="mut">${rows.filter(r => r.p === p).length}</span></button>`).join('')}</div>
+   <div class="flab">Geography</div><div class="chips" id="roG"><button class="btn on" data-v="">All</button>${Gs.map(p => `<button class="btn" data-v="${esc(p)}">${esc(p)} <span class="mut">${rows.filter(r => r.g === p).length}</span></button>`).join('')}</div>
+   <div class="grid g2"><div class="card"><h3 style="margin-top:0">Timeline <span class="mut" style="font-size:12px;font-weight:400" id="ron"></span></h3><div class="mut" style="font-size:12px;margin-bottom:8px">Click or tap an item for the source letter and notes. <button class="lnk" id="roAll">Expand all</button></div><div class="tl" id="rotl">${[...rows].reverse().map(r => `<div class="tli" data-p="${esc(r.p)}" data-g="${esc(r.g)}" tabindex="0" role="button" aria-expanded="false"><div class="w">${esc(r.d)} · <span class="pill acc">${esc(r.p)}</span> <span class="pill other">${esc(r.g)}</span></div><div class="p">${esc(r.name)}${r.name && r.e ? ': ' : ''}<span style="font-weight:400">${esc(r.e)}</span></div><div class="d">${r.x.map(([c, v]) => `<div><b>${esc(c)}:</b> ${linkify(String(v))}</div>`).join('')}</div></div>`).join('')}</div></div>
    <div>${ccard({id: 'roC', title: 'Milestones per year by product line', h: 340})}<div class="card" style="margin-top:16px"><h3 style="margin-top:0">Rollout by product line</h3>${Ps.map(p => `<div class="cat"><div class="when">${esc(p)}</div><div style="flex:1;font-size:13px">${rows.filter(r => r.p === p).map(r => esc(r.d.replace(/\s*\(.*\)/, ''))).join(' → ')}</div></div>`).join('')}</div></div></div>`;
   const st = {p: '', g: ''}; const apply = () => { let v = 0; $$('#rotl .tli').forEach(x => { const ok = (!st.p || x.dataset.p === st.p) && (!st.g || x.dataset.g === st.g); x.hidden = !ok; if (ok) v++; }); $('#ron').textContent = `· showing ${v} of ${rows.length}`; };
   [['#roP', 'p'], ['#roG', 'g']].forEach(([s, k]) => $$(s + ' button').forEach(b => b.onclick = () => { $$(s + ' button').forEach(x => x.classList.toggle('on', x === b)); st[k] = b.dataset.v; apply(); }));
@@ -621,16 +574,16 @@ function opmetrics() {
   const fv = (k, v) => v == null ? 'n/a' : /\(%\)|%/.test(k) ? fmt(v, Number.isInteger(v) ? 0 : 1) + (/pts|pp/.test(k) ? '' : '%') : /\(\$m\)/.test(k) ? money(v) : /\(\$\)/.test(k) ? '$' + fmt(v) : /\(m\)/.test(k) ? fmt(v, 2) + 'm' : Math.abs(v) >= 1e5 ? fmt(v / 1e6, 2) + 'm' : fmt(v, Number.isInteger(v) ? 0 : 1);
   const txtKeys = Object.keys(qs.text || {}).filter(k => (qs.text[k] || []).some(Boolean));
   const ret = findS(/annual dollar retention/i) || numKeys[0];
-  el.innerHTML = `<h2>Operating Metrics <span class="mut" style="font-size:16px;font-weight:500">· ${esc(L[0])} – ${esc(L[L.length - 1])}</span></h2>
-   ${sh.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:10px">${sh.pre.map(esc).join('<br>')}</div>` : ''}
-   ${picks.length ? `<div class="card verdict" style="margin-bottom:16px"><b>What to watch:</b> the ${picks.length} recommended due-diligence metrics are on the <a href="#picks">Metric Picks</a> tab, each with a chart, its latest value and what to watch.</div>` : ''}
+  el.innerHTML = `<h2>Operating Metrics <span class="mut">${esc(L[0])} – ${esc(L[L.length - 1])}</span></h2>
+   ${fnote(sh.pre, 'About this data')}
+   ${picks.length ? `<p class="lead sm"><b>What to watch.</b> the ${picks.length} recommended due-diligence metrics are on the <a href="#picks">Metric Picks</a> tab, each with a chart, its latest value and what to watch.</p>` : ''}
    <div class="card ccard" id="cc-omX" style="margin-bottom:16px"><div class="chead"><div class="ct">Metric explorer <select id="omSel" aria-label="Choose metric" style="margin-left:6px;max-width:260px">${secs.map(s => `<optgroup label="${esc(s)}">${numKeys.filter(k => (SEC[k] || 'Metrics') === s).map(k => `<option ${k === ret ? 'selected' : ''}>${esc(k)}</option>`).join('')}</optgroup>`).join('')}</select></div>
-     <div class="ctools"><div class="seg" data-k="mode"><button data-v="v" class="on">Value</button><button data-v="q">QoQ %</button><button data-v="y">YoY %</button></div><div class="seg" data-k="range"><button data-v="8">8Q</button><button data-v="12">3Y</button><button data-v="all" class="on">2020+ (all)</button></div><button class="ib" data-z="in" aria-label="Zoom in">+</button><button class="ib" data-z="out" aria-label="Zoom out">−</button><button class="btn" data-z="reset">Reset</button></div></div>
+     <div class="ctools"><div class="seg" data-k="mode"><button data-v="v" class="on">Value</button><button data-v="q">QoQ %</button><button data-v="y">YoY %</button></div><div class="seg" data-k="range"><button data-v="8">8Q</button><button data-v="12">3Y</button><button data-v="all" class="on">2020+ (all)</button></div><span class="ztools"><button class="ib" data-z="in" aria-label="Zoom in">+</button><button class="ib" data-z="out" aria-label="Zoom out">−</button><button class="ib wide" data-z="reset">Reset</button></span></div></div>
      <div class="chartbox" style="height:330px"><canvas id="omX"></canvas></div><div class="chint">Pick any metric, or click a card below. Hover or tap for values · drag to pan · pinch or Ctrl+scroll to zoom</div><div class="reinsboxes"></div></div>
    ${secs.map(s => `<h3>${esc(s)}</h3><div class="grid g4">${numKeys.filter(k => (SEC[k] || 'Metrics') === s).map(k => { const [v, i] = lastOf(k); const [pv, pj] = prevOf(k, i); const g = gfind(k); const n = Sx[k].filter(x => x != null).length;
      return `<div class="card kpi omc" data-k="${esc(k)}" style="cursor:pointer" title="Click to load into the metric explorer"><div class="l">${esc(k)} ${g ? info(g[0]) : ''}</div><div class="v">${fv(k, v)}</div><div class="s">${esc(L[i] || '')}${pv != null ? ` · prior ${fv(k, pv)} (${esc(L[pj])})` : ''} · ${n} qtrs</div><div class="spark"><canvas id="oms${numKeys.indexOf(k)}"></canvas></div></div>`; }).join('')}</div>`).join('')}
    ${txtKeys.length ? `<h3>Disclosed qualitative metrics</h3><div class="xscope">${xallBtns()}${txtKeys.map(k => details(esc(k), `<ul class="lst">${qs.text[k].map((v, i) => v ? `<li><b>${esc(L[i])}:</b> ${linkify(String(v))}</li>` : '').join('')}</ul>`, `${qs.text[k].filter(Boolean).length} quarters`)).join('')}</div>` : ''}
-   <h3>All operating metrics</h3>${tableBlock(sh.tables[0], {id: 'tOm', maxh: 640, notes: []})}
+   <h3>All operating metrics</h3>${details('Full operating metrics table', tableBlock(sh.tables[0], {id: 'tOm', maxh: 640, notes: []}), 'every metric, every quarter')}
    `;
   numKeys.forEach((k, i) => { const v = Sx[k]; const s0 = v.findIndex(x => x != null); spark('oms' + i, v.slice(s0), C.acc, L.slice(s0)); });
   picks.forEach((p, i) => { const m = PICKMAP.find(([a]) => a.test(p.name)); const sk = m ? findS(m[1]) : null; if (sk) { const v = Sx[sk]; const s0 = v.findIndex(x => x != null); spark('pk' + i, v.slice(s0), C.acc, L.slice(s0)); } });
@@ -662,13 +615,13 @@ function picksTab() {
     [/retention|adr/i, () => ({datasets: [line('Annual dollar retention (%)', /annual dollar retention/i, C.acc, {unit: '%'}), line('Premium per customer ($)', /^premium per customer \(/i, C.g, {yAxisID: 'y1', unit: '$'})], scales: y1})],
     [/product mix|segment/i, () => ({datasets: [bar('Home/renters US', /^ifp - home/i, C.acc), bar('Pet', /^ifp - pet/i, C.acc2), bar('Car', /^ifp - car/i, C.g), bar('Europe', /^ifp - europe/i, C.b)], stacked: true, unit: '$m'})]];
   const specs = picks.map((p, i) => { const m = SPEC.find(([re]) => re.test(p.name)); return m && om ? m[1]() : null; });
-  $('#s-picks').innerHTML = `<h2>What to watch <span class="mut" style="font-size:16px;font-weight:500">· ${picks.length} recommended due-diligence metrics</span></h2>
-   ${P.title ? `<div class="mut" style="font-size:13px;margin-bottom:4px">${esc(P.title)}</div>` : ''}${P.pre.length ? `<div class="mut" style="font-size:12.5px;margin-bottom:14px">${P.pre.map(esc).join('<br>')}</div>` : ''}
+  $('#s-picks').innerHTML = `<h2>What to watch <span class="mut">${picks.length} recommended due-diligence metrics</span></h2>
+   ${P.title ? `<div class="mut" style="font-size:13px;margin-bottom:4px">${esc(P.title)}</div>` : ''}${fnote(P.pre, 'About this data')}
    <div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">Checklist</h3>${picks.map((p, i) => `<div class="cat"><div class="when" style="width:28px">${i + 1}</div><div style="flex:1"><a href="#picks" data-go="pk-${i}"><b>${esc(p.name.replace(/^\d+\.\s*/, ''))}</b></a><div class="mut" style="font-size:12.5px">${esc(p.watch || '')}</div></div><div class="dd" style="max-width:200px;white-space:normal;text-align:right">${esc(p.latest || '')}</div></div>`).join('')}</div>
    <div class="grid g2">${picks.map((p, i) => `<div id="pk-${i}" style="scroll-margin-top:70px">${specs[i] && specs[i].datasets.some(Boolean) ? ccard({id: 'pkc' + i, title: p.name, growth: 0, reins: specs[i].reins, ranges: [['8', '8Q'], ['12', '3Y'], ['all', '2020+ (all)']], h: 260}) : `<div class="card"><div class="ct" style="font-weight:600">${esc(p.name)}</div></div>`}
      <div class="card" style="margin-top:-8px;border-top-left-radius:0;border-top-right-radius:0;padding-top:12px"><div class="kpi"><div class="l">Latest (${esc(D.hero.quarter)})</div><div class="v" style="font-size:18px">${esc(p.latest || 'n/a')}</div></div>
      <p style="font-size:13px;margin:8px 0 6px"><b>What to watch:</b> ${esc(p.watch || '')}</p>${details('Why it matters', esc(p.why || ''), esc(p.chart || ''))}</div></div>`).join('')}</div>
-   <h3>Table view</h3>${tableBlock(pt, {id: 'tPk', wrap: true, terms: false})}`;
+   <h3>Table view</h3>${details('All picks in one table', tableBlock(pt, {id: 'tPk', wrap: true, terms: false}), `${picks.length} metrics`)}`;
   specs.forEach((sp, i) => { if (!sp || !sp.datasets.some(Boolean)) return; wireCard({id: 'pkc' + i, reins: sp.reins, unit: sp.unit || '', build: st => { const s0 = rangeSlice(L, st); const ds = sp.datasets.filter(Boolean).map(d => Object.assign({}, d, {data: d.data.slice(s0)}));
     const first = Math.min(...ds.map(d => d.data.findIndex(v => v != null)).filter(x => x >= 0)); return {labels: L.slice(s0 + first), datasets: ds.map(d => Object.assign(d, {data: d.data.slice(first)})), stacked: sp.stacked, scales: Object.assign({}, sp.scales || {}, sp.stacked ? {y: {stacked: true}} : {})}; }}); });
   $$('#s-picks [data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = document.getElementById(a.dataset.go); t && t.scrollIntoView({behavior: 'smooth', block: 'start'}); });
@@ -685,28 +638,35 @@ function finShow(id) {
 }
 function finTab() {
   for (const k in finDone) delete finDone[k];
-  $('#s-fin').innerHTML = `<div class="chips" id="finsub" role="tablist" style="margin-bottom:12px">${FINSUB.map(([k, l]) => `<button class="btn" role="tab" data-v="${k}">${esc(l)}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
+  $('#s-fin').innerHTML = `<h2>Financial Statements <span class="mut">From Lemonade's 10-Q and 10-K filings</span></h2><div class="subtabs" id="finsub" role="tablist">${FINSUB.map(([k, l]) => `<button role="tab" data-v="${k}">${esc(l)}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
   $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
   finShow((location.hash.split('/')[1] || 'bs'));
 }
 const TABS = [['overview', 'Overview', overview], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
   ['rollout', 'Product Rollout', rollout, 'rollout'], ['opmetrics', 'Operating Metrics', opmetrics, 'opmetrics'], ['picks', 'Metric Picks', picksTab, 'picks'], ['fin', 'Financial Statements', finTab],
-  ['guidance', 'Guidance vs Actual', guidance], ['street', 'Wall Street', street], ['insiders', 'Insiders', insiders], ['valuation', 'Valuation & Peers', valuation], ['risks', 'Risks / Bull–Bear', risks], ['sources', 'Sources', sources]]
+  ['street', 'Street, Guidance & Valuation', streetTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources', sources]]
   .filter(t => !t[3] || OPT[t[3]]);
+/* short labels keep the nav simple; section headings keep the full names */
+const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', opmetrics: 'Operating Metrics', picks: 'Metric Picks', fin: 'Financials', street: 'Street & Valuation', insiders: 'Insiders', sources: 'Sources'};
+/* old links: retired tabs land somewhere sensible */
+const MOVED = {guidance: '#street/guidance', valuation: '#street/valuation', risks: '#overview'};
 const done = {};
 function route() {
   let id = (location.hash || '#overview').slice(1).split('/')[0];
   if (['is', 'bs', 'cf'].includes(id)) { location.replace('#fin/' + id); return; }
+  if (MOVED[id]) { location.replace(MOVED[id]); return; }
   if (!TABS.some(t => t[0] === id)) id = 'overview';
   if (id === 'fin' && done.fin) finShow(location.hash.split('/')[1] || 'bs');
   $$('#nav a').forEach(a => { const on = a.dataset.t === id; a.classList.toggle('on', on); if (on) a.scrollIntoView({block: 'nearest', inline: 'center'}); });
   $$('main section').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
   const t = TABS.find(t => t[0] === id);
   if (!done[id]) { try { t[2](); } catch (e) { console.error('render ' + id, e); $('#s-' + id).insertAdjacentHTML('beforeend', `<div class="tvfail">This tab could not render: ${esc(e.message)}</div>`); } done[id] = 1; wireTables($('#s-' + id)); wireXall($('#s-' + id)); }
+  if (id === 'street') { const sub = location.hash.split('/')[1]; if (sub && STREETB.some(b => b[0] === sub)) setTimeout(() => streetJump(sub, !!route.seen), 60); else $$('#stjump button').forEach(b => b.classList.remove('on')); }
+  route.seen = 1;
   document.title = `${t[1]} · Lemonade (LMND) Dashboard · © Hugo Tian`;
 }
 function buildNav() {
-  $('#nav').innerHTML = TABS.map(([id, l]) => `<a href="#${id}" data-t="${id}">${esc(l)}</a>`).join('');
+  $('#nav').innerHTML = TABS.map(([id, l]) => `<a href="#${id}" data-t="${id}" title="${esc(l)}">${esc(NAVL[id] || l)}</a>`).join('');
   $('#main').innerHTML = TABS.map(([id]) => `<section id="s-${id}"></section>`).join('');
 }
 /* ---------------- theme ---------------- */
@@ -723,5 +683,5 @@ $('#themebtn').onclick = () => { const cur = document.documentElement.dataset.th
   applyTheme(true); };
 if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) applyTheme(true); });
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via Yahoo Finance. Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b>`;
+$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; live price via TradingView (delayed). Not investment advice. Unavailable figures are shown as n/a.<br><b>© Hugo Tian</b>`;
 buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);
