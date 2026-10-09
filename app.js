@@ -510,11 +510,52 @@ const f4pill = r => `<span class="pill ${f4kind(r)}">${esc(f4lab(r))}</span>`;
 function f4table(rows, id) {
   return tableBlock({columns: [L('Date', '日期'), L('Insider', '内部人'), L('Code', '代码'), L('Type', '类型'), L('Shares', '股数'), L('Price ($)', '价格（美元）'), L('Owned after', '交易后持股'), L('D/I', '直接/间接'), L('Security', '证券'), L('Footnote', '脚注')], rows: rows.map(r => [r.tdate, r.insider, r.code, f4lab(r), r.shares, r.price, r.owned_after, r.di, r.security, r.footnotes || r.nature || ''])}, {id, terms: false, maxh: 520});
 }
+/* ---------------- Board of Directors + executive officers (board.js from build_board.py: 2026 proxy + 8-Ks, holdings from latest Form 3/4/5) ---------------- */
+const BROLE = {co_ceo_chair: ['Co-founder, CEO & Chairman', '联合创始人、首席执行官兼董事长'], co_pres: ['Co-founder, President & Director', '联合创始人、总裁兼董事'],
+  lead_ind: ['Lead independent director', '首席独立董事'], ind: ['Independent director', '独立董事'], cfo: ['Chief Financial Officer & Treasurer', '首席财务官兼司库'],
+  coo: ['Chief Operating Officer', '首席运营官'], cio: ['Chief Insurance Officer', '首席保险官'], cbo: ['Chief Business Officer', '首席商务官']};
+const bent = s => String(s || '').replace(/^(directly\s+)?held\s+(by|through)\s+/i, '');
+const BCOM = {a: ['Audit', '审计委员会'], c: ['Compensation', '薪酬委员会'], n: ['Nominating & Governance', '提名与公司治理委员会']};
+function boardBlock() {
+  const B = window.LMND_BOARD; if (!B) return '';
+  const role = p => esc(L(...(BROLE[p.role] || [p.role, p.role])));
+  const hold = p => { const h = p.holding; if (!h) return `<span class="na">${NA()}</span>`;
+    const ln = h.lines.map(l => `<div class="bl">${esc(l.di === 'D' ? L('Direct', '直接持有') : L(`Indirect: ${bent(l.nature)}`, `间接持有：${bent(l.nature)}`))} <b>${fmt(l.shares)}</b></div>`).join('');
+    return `<div class="bt">${fmt(h.total)}</div>${h.lines.length > 1 ? ln : `<div class="bl">${esc(h.lines.length && h.lines[0].di !== 'D' ? L('Indirect', '间接持有') : L('Direct', '直接持有'))}</div>`}`; };
+  const asof = p => { const h = p.holding; if (!h) return `<span class="na">${NA()}</span>`;
+    const fs = [...new Map(h.lines.map(l => [l.url, l])).values()];
+    return fs.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(L('Form ' + l.form, '表格 ' + l.form))}</a> <span class="mut">${esc(l.date)}</span>`).join('<br>'); };
+  const prox = p => p.proxy_shares ? fmt(p.proxy_shares) : '—';
+  const notes = p => (p.notes || []).length ? `<div class="bnote">${p.notes.map(n => esc(L(...n))).join('<br>')}</div>` : '';
+  const coms = p => { const e = Object.entries(p.com || {}); return e.length ? e.map(([k, v]) => `<span class="pill ${v === 'chair' ? 'acc' : 'other'}">${esc(L(BCOM[k][0] + (v === 'chair' ? ' · Chair' : ''), BCOM[k][1] + (v === 'chair' ? '（主席）' : '')))}</span>`).join(' ') : '<span class="mut">—</span>'; };
+  const thH = L('Shares held (latest Form 3/4/5)', '持股数（最新表格 3/4/5）'), thA = L('Filing', '申报文件'), thP = L(`Proxy, ${B.proxy.record}`, `委托书（${B.proxy.record}）`);
+  const dir = B.directors.map(p => `<tr><td><b>${esc(p.name)}</b><div class="bl">${role(p)}</div>${notes(p)}</td><td class="wrap">${coms(p)}</td><td class="nw">${p.since}</td><td class="nw">${esc(L(`Class ${p.cls} · ${p.term}`, `第${({I: '一', II: '二', III: '三'})[p.cls] || p.cls}类 · ${p.term} 年`))}</td><td>${hold(p)}</td><td class="dt">${asof(p)}</td><td class="nw">${prox(p)}</td></tr>`).join('');
+  const ex = B.execs.map(p => `<tr><td><b>${esc(p.name)}</b>${notes(p)}</td><td class="wrap">${role(p)}</td><td class="nw">${p.since}</td><td>${hold(p)}</td><td class="dt">${asof(p)}</td><td>${prox(p)}</td></tr>`).join('');
+  const nd = B.directors.length, ni = B.directors.filter(p => p.ind).length;
+  return `<div id="board"><h3>${L('Board of Directors', '董事会')} <span class="mut">${L(`${nd} directors, ${ni} independent · staggered three-year terms`, `${nd} 名董事，其中 ${ni} 名独立董事 · 三年任期交错改选`)}</span></h3>
+   <div class="tblwrap btab"><table><thead><tr><th>${L('Director', '董事')}</th><th>${L('Committees', '委员会')}</th><th>${L('Director since', '任董事起始年')}</th><th>${L('Class · term ends', '类别 · 任期届满')}</th><th>${thH}</th><th>${thA}</th><th>${thP}</th></tr></thead><tbody>${dir}</tbody></table></div>
+   <h4 class="bh4">${L('Executive officers (not on the board)', '高管（非董事会成员）')}</h4>
+   <div class="tblwrap btab"><table><thead><tr><th>${L('Officer', '高管')}</th><th>${L('Title', '职务')}</th><th>${L('In role since', '任职起始年')}</th><th>${thH}</th><th>${thA}</th><th>${thP}</th></tr></thead><tbody>${ex}</tbody></table></div>
+   ${fnote([
+     L('Roles, committees, class and director-since years: 2026 proxy statement (DEF 14A) and later 8-Ks; names as filed.', '职务、委员会、董事类别及任董事起始年：2026 年委托书（DEF 14A）及其后的 8-K；姓名保持英文原文。'),
+     L('Shares held: common stock owned after the latest transaction in each person’s most recent Form 3/4/5 on EDGAR, direct plus each indirect holding line (the entity is named). Options are not included; Lemonade reports RSU awards as common stock on Form 4, so unvested RSUs can be included. Indirect lines not reported again within 2 years are treated as stale.', '持股数：取自每人在 EDGAR 上最新表格 3/4/5 的最近一笔交易后普通股持股，包括直接持有及各条间接持有（注明持有实体）。不含期权；Lemonade 在表格 4 中将 RSU 授予列为普通股，因此可能包含未归属 RSU。两年内未再申报的间接持股行视为过时，不计入。'),
+     L(`Proxy column: beneficial ownership as of the record date ${B.proxy.record}, which also counts options and RSUs vesting within 60 days; “—” means none.`, `委托书一栏：截至股权登记日 ${B.proxy.record} 的实益持股，另含 60 天内可行权期权及归属的 RSU；“—”表示无持股。`),
+     L('Committees: Audit, Compensation, Nominating & Corporate Governance; the chair is highlighted.', '委员会：审计、薪酬、提名与公司治理；主席以高亮标示。'),
+     ...B.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(L(t, BSRCZ[t] || t))}</a>`),
+     L(`Holdings rebuilt from EDGAR on ${B.built_sgt}.`, `持股数据于 ${B.built_sgt.replace('SGT', '新加坡时间')} 从 EDGAR 重新生成。`)], L('Board data: notes & sources', '董事会数据：注释与来源'), true)}</div>`;
+}
+const BSRCZ = {
+ 'DEF 14A proxy statement (filed 2026-04-22; ownership as of record date 2026-04-09)': 'DEF 14A 委托书（2026-04-22 提交；持股截至股权登记日 2026-04-09）',
+ '8-K Item 5.07, 2026 annual meeting results (Eisenberg and Schwartz re-elected, Class III to 2029; filed 2026-06-05)': '8-K 第 5.07 项：2026 年股东年会投票结果（Eisenberg 与 Schwartz 连任第三类董事至 2029 年；2026-06-05 提交）',
+ '8-K Item 5.02, Tim Bixby to move from CFO to the Board (Class III) on 1 Jan 2027; Nick Stead named CFO (filed 2026-07-29)': '8-K 第 5.02 项：Tim Bixby 将于 2027 年 1 月 1 日由首席财务官转任董事（第三类）；Nick Stead 获任首席财务官（2026-07-29 提交）',
+ '8-K Item 5.02, Prashant Ratanchandani appointed (Class II; filed 2025-10-15)': '8-K 第 5.02 项：委任 Prashant Ratanchandani 为董事（第二类；2025-10-15 提交）',
+ '8-K Item 5.02, Geoff Seeley appointed (Class I; filed 2025-10-06)': '8-K 第 5.02 项：委任 Geoff Seeley 为董事（第一类；2025-10-06 提交）'};
 function insiders() {
   const sh = sheet('ownership|form ?4'); const inst = sh.tables.find(t => /institution/i.test(t.title || '')) || sh.tables[0]; const sum = sh.tables.find(t => /insider/i.test(t.title || '')) || sh.tables[1];
   const sr = sum.rows.filter(Array.isArray); const ci = n => sum.columns.findIndex(c => new RegExp(n, 'i').test(c));
   $('#s-insiders').innerHTML = `<h2>${L('Insiders & ownership', '内部人与持股')} <span class="mut">Form 4</span></h2>
    ${fnote(sh.pre, L('About this data', '关于此数据'))}
+   ${boardBlock()}
    ${charts2([{id: 'nSold', title: L('Shares sold by insider and type', '各内部人按类型划分的出售股数'), tip: '10b5-1'}, {id: 'nInst', title: L('Top institutional holders (% of shares)', '前十大机构持有人（持股比例 %）')}])}
    ${tableBlock(sum, {id: 'tIns', expand: r => { const rs = f4rows(r[0]); return rs.length ? `<div style="font-size:12.5px;margin-bottom:6px"><b>${L(`${rs.length} Form 4 lines for ${esc(r[0])}`, `${esc(r[0])} 的 ${rs.length} 条 Form 4 记录`)}</b> · ${L('click the row again to collapse', '再次点击该行可收起')}</div>` + `<div class="tblwrap" style="max-height:320px"><table class="inner"><thead><tr><th>${L('Date', '日期')}</th><th>${L('Code', '代码')}</th><th>${L('Type', '类型')}</th><th>${L('Shares', '股数')}</th><th>${L('Price', '价格')}</th><th>${L('Owned after', '交易后持股')}</th><th>${L('Footnote', '脚注')}</th></tr></thead><tbody>${rs.map(x => `<tr><td>${esc(x.tdate)}</td><td>${esc(x.code)}</td><td>${f4pill(x)}</td><td>${fmt(x.shares)}</td><td>${x.price ? '$' + fmt(x.price, 2) : ''}</td><td>${fmt(x.owned_after)}</td><td class="wrap">${esc(tr(x.footnotes || x.nature || '')).replace(/\n/g, '<br>')}</td></tr>`).join('')}</tbody></table></div>` : `<span class="mut">${L('No parsed Form 4 lines in the window.', '窗口期内没有已解析的 Form 4 记录。')}</span>`; }, notes: [L('Click an insider row to expand their individual Form 4 transactions.', '点击内部人所在行可展开其各笔 Form 4 交易。')]})}
    ${details(esc(tr(inst.title) || L('Top institutional holders', '前十大机构持有人')), tableBlock(inst, {id: 'tInst', notitle: 1}), L('table', '表格'))}

@@ -17,9 +17,10 @@ var d=document.documentElement;d.dataset.lang=l;d.lang=l==='zh'?'zh-CN':'en';if(
 <script src="vendor/hammer.min.js"></script>
 <script src="vendor/chartjs-plugin-zoom.min.js"></script>
 <script src="vendor/chartjs-plugin-annotation.min.js"></script>
-<script src="data.js?v=1791534725"></script>
-<script src="feed.js?v=1791534725"></script>
-<script src="zh.js?v=1791534725"></script>
+<script src="data.js?v=1791546601"></script>
+<script src="feed.js?v=1791546601"></script>
+<script src="zh.js?v=1791546601"></script>
+<script src="board.js?v=1791546601"></script>
 <style>
 /* Minimal Apple-style system: neutral surfaces, whitespace over lines, Lemonade pink as the only accent */
 :root{--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -157,6 +158,15 @@ details.fn .fnn{font-size:10.5px;background:var(--seg);border-radius:980px;paddi
 .subtabs button.on{background:var(--segon);color:var(--acc);box-shadow:0 1px 3px rgba(0,0,0,.1)}
 .sblk{scroll-margin-top:80px}
 .sblk+.sblk{margin-top:56px}
+/* Board of Directors (Insiders tab) */
+#board h3{margin-top:8px}
+.tblwrap.btab{max-height:none}.btab td.nw{white-space:nowrap}
+.btab td{white-space:normal;text-align:left;vertical-align:top}.btab th{text-align:left;cursor:default}.btab th:hover{color:var(--mut2)}
+.btab td:first-child{min-width:200px}
+.btab .bt{font-weight:600;font-size:14px;color:var(--txt)}.btab .bl{font-size:12px;color:var(--mut);margin-top:2px}.btab .bl b{font-weight:500;color:var(--txt)}
+.btab .bnote{font-size:11.5px;color:var(--mut2);margin-top:6px;max-width:300px;line-height:1.45}
+.btab td.dt{line-height:1.6}.btab .pill{margin:0 2px 3px 0}
+.bh4{font-size:15px;margin:26px 0 12px}
 /* tables: whitespace instead of rules */
 .tblwrap{overflow:auto;background:var(--panel);border-radius:18px;box-shadow:var(--shadow);max-height:640px;-webkit-overflow-scrolling:touch}
 .card .tblwrap{box-shadow:none;border-radius:0;background:transparent}
@@ -255,6 +265,6 @@ footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 <main id="main"></main>
 <footer id="foot"></footer>
 <div id="tip" role="tooltip"></div>
-<script src="app.js?v=1791534725"></script>
+<script src="app.js?v=1791546601"></script>
 </body>
 </html>
