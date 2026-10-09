@@ -125,8 +125,8 @@ function wireCard(o) {
 }
 function charts2(list) { return `<div class="grid g2" style="margin-bottom:16px">${list.map(ccard).join('')}</div>`; }
 function spark(id, data, color, labels) {
-  return chart(id, {type: 'line', data: {labels: labels || Q.map(qshort), datasets: [{data, borderColor: color || C.acc, backgroundColor: C.acc3, fill: true, pointRadius: 0, pointHoverRadius: 3, borderWidth: 1.75, tension: .35}]},
-    options: {responsive: true, maintainAspectRatio: false, animation: false, layout: {padding: 2}, scales: {x: {display: false}, y: {display: false}},
+  return chart(id, {type: 'line', data: {labels: labels || Q.map(qshort), datasets: [{data, borderColor: color || C.acc, backgroundColor: C.acc3, fill: 'start', pointRadius: 0, pointHoverRadius: 3, borderWidth: 1.75, tension: .35}]},
+    options: {responsive: true, maintainAspectRatio: false, animation: false, layout: {padding: {top: 4, bottom: 0, left: 0, right: 5}}, scales: {x: {display: false, offset: false}, y: {display: false, grace: '8%'}},
       plugins: {legend: {display: false}, tooltip: {displayColors: false, padding: 6, titleFont: {size: 10.5}, bodyFont: {size: 11}, callbacks: {label: c => fmt(c.raw, Math.abs(c.raw) < 100 ? 1 : 0)}}},
       interaction: {mode: 'index', intersect: false}}});
 }
