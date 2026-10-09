@@ -17,9 +17,9 @@ var d=document.documentElement;d.dataset.lang=l;d.lang=l==='zh'?'zh-CN':'en';if(
 <script src="vendor/hammer.min.js"></script>
 <script src="vendor/chartjs-plugin-zoom.min.js"></script>
 <script src="vendor/chartjs-plugin-annotation.min.js"></script>
-<script src="data.js?v=1791528236"></script>
-<script src="feed.js?v=1791528236"></script>
-<script src="zh.js?v=1791528236"></script>
+<script src="data.js?v=1791528343"></script>
+<script src="feed.js?v=1791528343"></script>
+<script src="zh.js?v=1791528343"></script>
 <style>
 /* Minimal Apple-style system: neutral surfaces, whitespace over lines, Lemonade pink as the only accent */
 :root{--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -52,7 +52,7 @@ nav a:hover{opacity:1}
 nav a.on{color:var(--acc);opacity:1;font-weight:600;background:var(--accsoft)}
 .themebtn{flex:none;border:0;background:transparent;color:var(--mut);border-radius:980px;height:30px;padding:0 8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
 .themebtn:hover{color:var(--acc)}
-.hbtns{display:flex;align-items:center;gap:2px;flex:none}.langbtn .tl3{font-weight:500}
+.hbtns{display:flex;align-items:center;gap:2px;flex:none}.langbtn .tl3{font-weight:500}.langbtn{gap:6px}.langbtn .flag{width:16px;height:16px;border-radius:50%;object-fit:cover;display:block;box-shadow:0 0 0 1px rgba(127,127,127,.25)}
 html[data-lang=zh]{--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei","Helvetica Neue",Helvetica,Arial,sans-serif}
 html[data-lang=zh] body{letter-spacing:0}
 /* hero */
@@ -246,7 +246,7 @@ footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 </style>
 </head>
 <body>
-<header><div class="bar"><a class="brand" href="#overview" aria-label="Lemonade dashboard home"><span class="wm" role="img" aria-label="Lemonade"></span><span class="bn" id="brandsub">Dashboard</span></a><nav id="nav"></nav><div class="hbtns"><button class="themebtn langbtn" id="langbtn" title="Language: English · click for 中文" aria-label="Switch language to Chinese"><span class="tl3" id="langlbl">中文</span></button><button class="themebtn" id="themebtn" title="Theme: follows your system until you pick one"><span id="themeic">◐</span><span class="tl2" id="themelbl">Auto</span></button></div></div></header>
+<header><div class="bar"><a class="brand" href="#overview" aria-label="Lemonade dashboard home"><span class="wm" role="img" aria-label="Lemonade"></span><span class="bn" id="brandsub">Dashboard</span></a><nav id="nav"></nav><div class="hbtns"><button class="themebtn langbtn" id="langbtn" title="Language: English · click for 中文" aria-label="Switch language to Chinese"><img class="flag" id="langflag" src="flag-cn.svg" alt="" width="16" height="16"><span class="tl3" id="langlbl">中文</span></button><button class="themebtn" id="themebtn" title="Theme: follows your system until you pick one"><span id="themeic">◐</span><span class="tl2" id="themelbl">Auto</span></button></div></div></header>
 <div class="hero"><h1>Lemonade <span class="tk">$LMND</span> <span id="h1t">Dashboard</span></h1>
   <div class="sub" id="updated"></div>
   <div class="h4" id="hero4"></div>
@@ -255,6 +255,6 @@ footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 <main id="main"></main>
 <footer id="foot"></footer>
 <div id="tip" role="tooltip"></div>
-<script src="app.js?v=1791528236"></script>
+<script src="app.js?v=1791528343"></script>
 </body>
 </html>

@@ -926,7 +926,7 @@ if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListen
 /* ---------------- language ---------------- */
 function langChrome() {
   const de = document.documentElement; de.lang = LANG === 'zh' ? 'zh-CN' : 'en'; de.dataset.lang = LANG;
-  const lb = $('#langlbl'); if (lb) lb.textContent = LANG === 'zh' ? 'EN' : '中文';
+  const lb = $('#langlbl'); if (lb) lb.textContent = LANG === 'zh' ? 'EN' : '中文'; { const fl = document.getElementById('langflag'); if (fl) fl.src = LANG === 'zh' ? 'flag-us.svg' : 'flag-cn.svg'; }
   const b = $('#langbtn'); if (b) { b.title = L('Language: English · click for 中文', '语言：中文 · 点击切换为 English'); b.setAttribute('aria-label', L('Switch language to Chinese', '切换语言为英文')); }
   const bn = $('#brandsub'); if (bn) bn.textContent = L('Dashboard', '看板');
   const h1 = $('#h1t'); if (h1) h1.textContent = L('Dashboard', '看板');
