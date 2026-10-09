@@ -8,8 +8,8 @@
 <meta name="description" content="Lemonade, Inc. (NYSE: LMND) investor dashboard: in-force premium, customers, premium per customer, live price, financial statements, Wall Street, guidance, valuation and insiders.">
 <meta name="copyright" content="© 2026 Hugo Tian. All rights reserved.">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="favicon.png?v=2">
+<link rel="apple-touch-icon" href="icon-180.png?v=2">
 <script>(function(){try{var t=localStorage.getItem('lmnd-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}
 var l=null;try{l=localStorage.getItem('lmnd-lang');}catch(e){}if(l!=='zh'&&l!=='en')l=/^zh/i.test(navigator.language||'')?'zh':'en';
 var d=document.documentElement;d.dataset.lang=l;d.lang=l==='zh'?'zh-CN':'en';if(l==='zh')document.title='Lemonade (LMND) 看板 · © 2026 Hugo Tian';})();</script>
@@ -17,9 +17,9 @@ var d=document.documentElement;d.dataset.lang=l;d.lang=l==='zh'?'zh-CN':'en';if(
 <script src="vendor/hammer.min.js"></script>
 <script src="vendor/chartjs-plugin-zoom.min.js"></script>
 <script src="vendor/chartjs-plugin-annotation.min.js"></script>
-<script src="data.js?v=1791528993"></script>
-<script src="feed.js?v=1791528993"></script>
-<script src="zh.js?v=1791528993"></script>
+<script src="data.js?v=1791534725"></script>
+<script src="feed.js?v=1791534725"></script>
+<script src="zh.js?v=1791534725"></script>
 <style>
 /* Minimal Apple-style system: neutral surfaces, whitespace over lines, Lemonade pink as the only accent */
 :root{--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -44,7 +44,7 @@ header{position:sticky;top:0;z-index:30;background:var(--glass);-webkit-backdrop
 .bar{max-width:1200px;margin:0 auto;padding:0 32px;height:52px;display:flex;align-items:center;gap:20px}
 .brand{display:flex;align-items:center;gap:10px;flex:none;color:var(--txt);text-decoration:none!important}
 .wm{display:block;width:80px;height:18px;background:var(--acc);-webkit-mask:url(lmnd.svg) no-repeat left center/contain;mask:url(lmnd.svg) no-repeat left center/contain}
-.brand .bn{font-size:12px;font-weight:500;color:var(--mut);white-space:nowrap}
+.brand .lseal{width:28px;height:28px;display:block;border-radius:50%}.brand .bn{font-size:12px;font-weight:500;color:var(--mut);white-space:nowrap}
 nav{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;flex:1;justify-content:center;scroll-behavior:smooth}
 nav::-webkit-scrollbar{display:none}
 nav a{padding:6px 10px;border-radius:980px;color:var(--txt);opacity:.72;font-size:12px;white-space:nowrap;text-decoration:none!important;transition:opacity .15s,color .15s}
@@ -246,7 +246,7 @@ footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 </style>
 </head>
 <body>
-<header><div class="bar"><a class="brand" href="#overview" aria-label="Lemonade dashboard home"><span class="wm" role="img" aria-label="Lemonade"></span><span class="bn" id="brandsub">Dashboard</span></a><nav id="nav"></nav><div class="hbtns"><button class="themebtn langbtn" id="langbtn" title="Language"><span class="lopt" id="flag-en"><img class="flag" src="flag-us.svg" alt="" width="16" height="16">EN</span><span class="fsl">/</span><span class="lopt" id="flag-zh"><img class="flag" src="flag-cn.svg" alt="" width="16" height="16">中文</span></button><button class="themebtn" id="themebtn" title="Theme: follows your system until you pick one"><span id="themeic">◐</span><span class="tl2" id="themelbl">Auto</span></button></div></div></header>
+<header><div class="bar"><a class="brand" href="#overview" aria-label="Lemonade dashboard home"><img class="lseal" src="lmnd-seal.png?v=1" alt="Lemonade" width="28" height="28"><span class="bn" id="brandsub">Dashboard</span></a><nav id="nav"></nav><div class="hbtns"><button class="themebtn langbtn" id="langbtn" title="Language"><span class="lopt" id="flag-en"><img class="flag" src="flag-us.svg" alt="" width="16" height="16">EN</span><span class="fsl">/</span><span class="lopt" id="flag-zh"><img class="flag" src="flag-cn.svg" alt="" width="16" height="16">中文</span></button><button class="themebtn" id="themebtn" title="Theme: follows your system until you pick one"><span id="themeic">◐</span><span class="tl2" id="themelbl">Auto</span></button></div></div></header>
 <div class="hero"><h1>Lemonade <span class="tk">$LMND</span> <span id="h1t">Dashboard</span></h1>
   <div class="sub" id="updated"></div>
   <div class="h4" id="hero4"></div>
@@ -255,6 +255,6 @@ footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 <main id="main"></main>
 <footer id="foot"></footer>
 <div id="tip" role="tooltip"></div>
-<script src="app.js?v=1791528993"></script>
+<script src="app.js?v=1791534725"></script>
 </body>
 </html>
