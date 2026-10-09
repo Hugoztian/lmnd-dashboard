@@ -757,5 +757,5 @@ $('#themebtn').onclick = () => { const cur = document.documentElement.dataset.th
   applyTheme(true); };
 if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) applyTheme(true); });
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `Built from Lemonade's SEC filings (10-Q, 8-K shareholder letters, Form 4, DEF 14A), company IR material and labelled third-party market data. Company figures as of ${esc(D.hero.period_end_long)} (${esc(D.hero.quarter)}); market data close ${esc(dlong(D.price.close_date))}; real-time price via Robinhood (TradingView delayed quote as backup), live chart via TradingView. Not investment advice. Unavailable figures are shown as n/a.<br><b>© 2026 Hugo Tian. All rights reserved.</b> · <a class="flink" href="#sources">Sources</a>`;
+$('#foot').innerHTML = `© 2026 Hugo Tian. All rights reserved.`;
 buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);
