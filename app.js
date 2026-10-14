@@ -39,7 +39,7 @@ function palette() {
   C = isDark()
     ? {acc:'#ff3d9f', acc2:'#ff9fcf', acc3:'rgba(255,61,159,.16)', g:'#d1d1d6', r:'#636366', y:'#c9a77c', b:'#8fa3bf', p:'#b49fc9', t:'#86b8a8', up:'#30d158', dn:'#ff453a', grid:'rgba(255,255,255,.06)', txt:'#8e8e93', title:'#f5f5f7', band:'rgba(142,142,147,.30)'}
     : {acc:'#FF0083', acc2:'#ff99cd', acc3:'rgba(255,0,131,.10)', g:'#48484a', r:'#c7c7cc', y:'#b8946a', b:'#7d93b2', p:'#a48bbd', t:'#6fa696', up:'#1d8a3a', dn:'#d70015', grid:'rgba(0,0,0,.045)', txt:'#86868b', title:'#1d1d1f', band:'rgba(142,142,147,.28)'};
-  const d = Chart.defaults;
+  const d = Chart.defaults; d.devicePixelRatio = Math.max(2, window.devicePixelRatio || 1);
   d.font.family = '-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",Arial,sans-serif'; d.font.size = 11; d.color = C.txt; d.borderColor = C.grid;
   d.elements.line.borderWidth = 2; d.elements.line.tension = .35; d.elements.point.radius = 1.5; d.elements.point.hoverRadius = 5; d.elements.point.hitRadius = 12; d.elements.point.borderWidth = 0;
   d.elements.bar.borderRadius = 5; d.elements.bar.borderSkipped = false; d.datasets.bar.maxBarThickness = 32;
@@ -181,12 +181,12 @@ function tableBlock(t, o = {}) {
     if (o.colorLatest && lastQ > 0 && typeof r[lastQ] === 'number' && typeof r[prevQ] === 'number' && r[lastQ] !== r[prevQ]) { const up = r[lastQ] > r[prevQ]; const good = BAD.test(label) ? !up : up; trend = good ? 'up' : 'dn'; }
     const xd = o.expand ? o.expand(r, ri) : null;
     h += `<tr data-ri="${ri}" class="${xd ? 'xrow' : ''}">` + r.map((c, i) => { const [s, cl] = cellFmt(c, cols[i]); const w = (String(s).length > 44 || o.wrap) ? ' wrap' : '';
-      const body = (i === 0 && o.terms !== false ? termify(String(c ?? ''), s) : linkify(s)).replace(/\n/g, '<br>');
+      const body = o.raw && typeof c === 'string' && /<(a|span) /.test(c) ? c : (i === 0 && o.terms !== false ? termify(String(c ?? ''), s) : linkify(s)).replace(/\n/g, '<br>');
       return `<td class="${cl}${w}${i === lastQ ? ' latest ' + trend : ''}">${body}</td>`; }).join('') + '</tr>';
     if (xd) h += `<tr class="xdetail" data-for="${ri}" hidden><td colspan="${cols.length}">${xd}</td></tr>`;
   });
   h += '</tbody></table></div>';
-  const notes = [...pre, ...(t.notes || []), ...(o.notes || [])]; h += fnote(notes);
+  const notes = [...pre, ...(t.notes || []), ...(o.notes || [])]; h += fnote(notes, undefined, !!o.raw);
   return h;
 }
 function wireTables(root) {
@@ -397,6 +397,7 @@ function overview() {
   const ph = P.hist || [];
   $('#s-overview').innerHTML = `<h2>${L('Overview', '概览')}</h2>
   <p class="lead">${N.verdict ? `<b>${L('Verdict.', '结论。')}</b> ${esc(tr(N.verdict))}` : ''}</p>
+  ${weekCard()}
   <div class="blk"><div class="qpick"><b>${L('KPI cards for quarter', 'KPI 卡片所示季度')}</b> <button class="ib" id="qprev" aria-label="${L('Previous quarter', '上一季度')}">‹</button><select id="qsel" aria-label="${L('Pick quarter', '选择季度')}">${Q.map((q, i) => `<option value="${i}" ${i === LI ? 'selected' : ''}>${esc(q)} (${L('ended', '截至')} ${esc(dlong(D.meta.period_end[i]))})</option>`).join('')}</select><button class="ib" id="qnext" aria-label="${L('Next quarter', '下一季度')}">›</button><span class="mut" style="font-size:12px">${L(`The cards at the top always show the latest quarter (${esc(H.quarter)}).`, `顶部卡片始终显示最新季度（${esc(H.quarter)}）。`)}</span></div>
     <div class="grid g4" id="kpicards"></div></div>
   <div class="grid g2" style="margin-bottom:16px">
@@ -426,7 +427,9 @@ function kpis() {
   ${charts2([{id: 'kIfp', title: L('In-force premium vs revenue vs GEP ($m)', '有效保费、营收与 GEP（百万美元）'), tip: 'IFP', growth: 1, reins: 1}, {id: 'kCu', title: L('Customers (m) & premium per customer ($)', '客户数（百万）与单客户保费（美元）'), tip: 'PPC', growth: 1},
     {id: 'kLr', title: L('Loss ratios (%)', '赔付率（%）'), tip: 'GLR'}, {id: 'kRe', title: L('Reinsurance effect: ceded vs net earned premium ($m)', '再保险影响：分出与净已赚保费（百万美元）'), tip: 'Quota share', reins: 1},
     {id: 'kMix', title: L('IFP by product / geography ($m)', '按产品 / 地区划分的 IFP（百万美元）'), tip: 'IFP', growth: 1}, {id: 'kGlrP', title: L('Gross loss ratio by product (%)', '按产品划分的毛赔付率（%）'), tip: 'GLR'},
-    {id: 'kComp', title: L('Loss-ratio components (pp of GEP)', '赔付率构成（占 GEP 百分点）'), tip: 'CAT'}, {id: 'kAdr', title: L('Annual dollar retention (%)', '年度金额留存率（%）'), tip: 'ADR'}])}
+    {id: 'kAdr', title: L('Annual dollar retention (%)', '年度金额留存率（%）'), tip: 'ADR'}])}
+  ${lrBlock()}
+  ${cohortBlock()}
   ${tableBlock({title: L('Insurance KPIs — 8 quarters', '保险 KPI — 8 个季度'), columns: t.tables[0].columns, rows: t.tables[0].rows, notes: t.tables[0].notes}, {id: 'tKpi', colorLatest: 1, pre: t.pre})}`;
   wireCard({id: 'kIfp', reins: 1, unit: '$m', build: () => ({labels: QL, datasets: [{type: 'bar', label: L('Total revenue', '总营收'), data: i('^total revenue'), backgroundColor: C.acc, yAxisID: 'y', order: 2},
     {type: 'bar', label: L('Gross earned premium', '毛已赚保费'), data: i('gross earned premium'), backgroundColor: C.acc2, yAxisID: 'y', order: 3}, {type: 'line', label: L('In-force premium (annualised)', '有效保费（年化）'), data: k('in-?force premium'), borderColor: C.g, yAxisID: 'y1', order: 1}],
@@ -440,7 +443,7 @@ function kpis() {
       scales: {y: {stacked: true}, y1: {position: 'right', min: 0, max: 100, grid: {drawOnChartArea: false}, ticks: {callback: v => v + '%'}}}}; }});
   wireCard({id: 'kMix', unit: '$m', build: () => trimQ({labels: QL, stacked: true, datasets: [['homeowners', L('Homeowners MPL', '房主综合险'), C.acc], ['^pet$', L('Pet', '宠物险'), C.acc2], ['^car$', L('Car', '车险'), C.g], ['europe \\(', L('Europe', '欧洲'), C.b], ['^other$', L('Other', '其他'), C.r]].map(([p, l, c]) => ({type: 'bar', label: l, data: k(p), backgroundColor: c}))})});
   wireCard({id: 'kGlrP', unit: '%', build: () => trimQ({type: 'line', labels: QL, datasets: [['homeowners mpl glr', L('Homeowners', '房主险'), C.acc], ['pet glr', L('Pet', '宠物险'), C.p], ['car glr', L('Car', '车险'), C.g], ['europe glr', L('Europe', '欧洲'), C.b]].map(([p, l, c]) => ({label: l, data: k(p), borderColor: c, spanGaps: true})), scales: {y: {ticks: {callback: v => v + '%'}}}})});
-  wireCard({id: 'kComp', unit: 'pp', build: () => trimQ({labels: QL, datasets: [['cat excl', L('CAT excl. PPD', 'CAT（不含 PPD）'), C.acc], ['lae excl', L('LAE excl. PPD', 'LAE（不含 PPD）'), C.g], ['prior period', L('Prior-period development', '前期准备金进展'), C.b]].map(([p, l, c]) => ({type: 'bar', label: l, data: k(p), backgroundColor: c}))})});
+  lrWire(); cohortWire();
   wireCard({id: 'kAdr', unit: '%', build: () => ({type: 'line', labels: QL, datasets: [{label: L('Annual dollar retention', '年度金额留存率'), data: k('annual dollar retention'), borderColor: C.acc, fill: false}], scales: {y: {min: 70, max: 100, ticks: {callback: v => v + '%'}}}})});
 }
 /* ---------------- statements ---------------- */
@@ -466,7 +469,8 @@ function cfTab() { const c = n => ser(n, 'cf');
   stmt('cf', 'cf', L('Cash Flow Statement', '现金流量表'), [
     {id: 'cFcf', title: L('Operating cash flow, capex & free cash flow ($m)', '经营现金流、资本支出与自由现金流（百万美元）'), tip: 'Adj. FCF', unit: '$m', build: () => ({labels: QL, datasets: [{type: 'bar', label: L('Cash from operations', '经营活动现金流'), data: c('operating activities'), backgroundColor: C.acc}, {type: 'bar', label: L('Capex', '资本支出'), data: c('capital expend').map(v => -v), backgroundColor: C.r}, {type: 'line', label: L('Free cash flow', '自由现金流'), data: c('^free cash flow'), borderColor: C.g}, {type: 'line', label: L('Adjusted FCF', '调整后自由现金流'), data: c('^adjusted free'), borderColor: C.b}]})},
     {id: 'cGs', title: L('Growth spend vs Synthetic Agents balance ($m)', '增长支出与 Synthetic Agents 余额（百万美元）'), tip: 'Synthetic Agents', growth: 1, unit: '$m', build: () => ({labels: QL, datasets: [{type: 'bar', label: L('Growth spend (quarter)', '增长支出（季度）'), data: c('growth spend'), backgroundColor: C.acc}, {type: 'line', label: L('Synthetic Agents balance (EOP)', 'Synthetic Agents 余额（期末）'), data: c('synthetic'), borderColor: C.g, yAxisID: 'y1'}], scales: {y1: {position: 'right', grid: {drawOnChartArea: false}}}})},
-    {id: 'cCi', title: L('Cash & investments, end of period ($m)', '期末现金及投资（百万美元）'), growth: 1, unit: '$m', build: () => ({type: 'line', labels: QL, datasets: [{label: L('Cash & investments', '现金及投资'), data: c('cash & investments'), borderColor: C.acc, fill: true, backgroundColor: C.acc3}]})}]); }
+    {id: 'cCi', title: L('Cash & investments, end of period ($m)', '期末现金及投资（百万美元）'), growth: 1, unit: '$m', build: () => ({type: 'line', labels: QL, datasets: [{label: L('Cash & investments', '现金及投资'), data: c('cash & investments'), borderColor: C.acc, fill: true, backgroundColor: C.acc3}]})}]);
+  $('#s-cf').insertAdjacentHTML('afterbegin', `<div class="sblk" id="blk-runway" style="margin-bottom:18px">${runwayBlock()}</div>`); runwayWire(); wireTables($('#blk-runway')); }
 
 /* ---------------- Guidance vs actual ---------------- */
 function guidance() {
@@ -556,6 +560,7 @@ function insiders() {
   $('#s-insiders').innerHTML = `<h2>${L('Insiders & ownership', '内部人与持股')} <span class="mut">Form 4</span></h2>
    ${fnote(sh.pre, L('About this data', '关于此数据'))}
    ${boardBlock()}
+   ${isellBlock()}
    ${charts2([{id: 'nSold', title: L('Shares sold by insider and type', '各内部人按类型划分的出售股数'), tip: '10b5-1'}, {id: 'nInst', title: L('Top institutional holders (% of shares)', '前十大机构持有人（持股比例 %）')}])}
    ${tableBlock(sum, {id: 'tIns', expand: r => { const rs = f4rows(r[0]); return rs.length ? `<div style="font-size:12.5px;margin-bottom:6px"><b>${L(`${rs.length} Form 4 lines for ${esc(r[0])}`, `${esc(r[0])} 的 ${rs.length} 条 Form 4 记录`)}</b> · ${L('click the row again to collapse', '再次点击该行可收起')}</div>` + `<div class="tblwrap" style="max-height:320px"><table class="inner"><thead><tr><th>${L('Date', '日期')}</th><th>${L('Code', '代码')}</th><th>${L('Type', '类型')}</th><th>${L('Shares', '股数')}</th><th>${L('Price', '价格')}</th><th>${L('Owned after', '交易后持股')}</th><th>${L('Footnote', '脚注')}</th></tr></thead><tbody>${rs.map(x => `<tr><td>${esc(x.tdate)}</td><td>${esc(x.code)}</td><td>${f4pill(x)}</td><td>${fmt(x.shares)}</td><td>${x.price ? '$' + fmt(x.price, 2) : ''}</td><td>${fmt(x.owned_after)}</td><td class="wrap">${esc(tr(x.footnotes || x.nature || '')).replace(/\n/g, '<br>')}</td></tr>`).join('')}</tbody></table></div>` : `<span class="mut">${L('No parsed Form 4 lines in the window.', '窗口期内没有已解析的 Form 4 记录。')}</span>`; }, notes: [L('Click an insider row to expand their individual Form 4 transactions.', '点击内部人所在行可展开其各笔 Form 4 交易。')]})}
    ${details(esc(tr(inst.title) || L('Top institutional holders', '前十大机构持有人')), tableBlock(inst, {id: 'tInst', notitle: 1}), L('table', '表格'))}
@@ -564,6 +569,7 @@ function insiders() {
    ${f4table(D.form4, 'tF4')}
    ${fnote([L(`Codes: ${Object.entries(CODES).map(([k, v]) => `<b>${k}</b> ${esc(v)}`).join(' · ')}. 10b5-1 = plan checkbox or footnote; tax sale = shares sold to cover RSU tax withholding.`, `代码：${Object.keys(CODES).map(k => `<b>${k}</b> ${esc(CODESZ[k])}`).join(' · ')}。10b5-1 = 计划勾选框或脚注；缴税出售 = 为缴纳 RSU 预扣税而出售的股份。`)], L('Form 4 codes', 'Form 4 代码'), true)}`;
   wireCard({id: 'nSold', build: () => ({labels: sr.map(r => r[0].split(' ').pop()), stacked: true, datasets: [{type: 'bar', label: L('10b5-1 plan', '10b5-1 计划'), data: sr.map(r => r[ci('10b5-1')]), backgroundColor: C.acc}, {type: 'bar', label: L('Non-plan (ex tax)', '非计划（不含缴税）'), data: sr.map(r => (r[ci('non-plan')] || 0) - (r[ci('tax')] || 0)), backgroundColor: C.y}, {type: 'bar', label: L('Tax withholding', '预扣税'), data: sr.map(r => r[ci('tax')]), backgroundColor: C.p}], scales: {x: {stacked: true}, y: {stacked: true}}}), unit: 'sh'});
+  isellWire();
   const ir = inst.rows.filter(Array.isArray);
   wireCard({id: 'nInst', unit: '%', build: () => ({labels: ir.map(r => r[0]), datasets: [{type: 'bar', label: L('% held', '持股比例 %'), data: ir.map(r => r[1]), backgroundColor: C.acc}]})});
   const saleLabs = ['planned', 'nonplan', 'tax'].map(k => L(...F4L[k]));
@@ -585,7 +591,7 @@ function valuation() {
   wireCard({id: 'vMc', unit: '$b', build: () => ({labels: lab, datasets: [{type: 'bar', label: L('Market cap ($b)', '市值（十亿美元）'), data: rows.map(r => n(r, ci('mkt cap'))), backgroundColor: C.acc}, {type: 'bar', label: L('EV ($b)', '企业价值（十亿美元）'), data: rows.map(r => n(r, ci('^ev'))), backgroundColor: C.r}], scales: {y: {type: 'logarithmic', title: {display: true, text: L('log scale', '对数刻度')}}}})});
 }
 /* ---------------- Metrics & Street: Operating Metrics, Metric Picks, Guidance vs Actual, Wall Street, Valuation & Peers as one section ---------------- */
-const mblk = () => [['opmetrics', () => opmetrics(), 'opmetrics'], ['picks', () => picksTab(), 'picks'], ['guidance', () => guidance()], ['street', () => street()], ['valuation', () => valuation()]].filter(b => !b[2] || OPT[b[2]]);
+const mblk = () => [['opmetrics', () => opmetrics(), 'opmetrics'], ['picks', () => picksTab(), 'picks'], ['guidance', () => guidance()], ['street', () => street()], ['valuation', () => valuation()], ['bear', () => bearBlk()]].filter(b => !b[2] || OPT[b[2]]);
 function metricsTab() {
   const om = OPT.opmetrics ? OPT.opmetrics.qs.quarters : null;
   $('#s-metrics').innerHTML = `<h2>${L('Metrics & Street', '指标与华尔街')} <span class="mut">${om ? `${esc(om[0])} – ${esc(om[om.length - 1])} · ` : ''}${L('operating metrics, what to watch, guidance vs actual, Wall Street and valuation', '运营指标、关注要点、指引与实际、华尔街预期及估值')}</span></h2>
@@ -823,6 +829,7 @@ function rollout() {
   const uniq = a => [...new Set(a.filter(Boolean))];
   const Ps = uniq(rows.map(r => r.p)), Gs = uniq(rows.map(r => r.g));
   el.innerHTML = `<h2>${L('Product Rollout', '产品拓展')} <span class="mut">${L(`${rows.length} milestones`, `${rows.length} 个里程碑`)}</span></h2>
+   ${growthBlock()}
    ${fnote(sh.pre, L('About this data', '关于此数据'))}
    <div class="flab">${L('Product line', '产品线')}</div><div class="chips" id="roP"><button class="btn on" data-v="">${L('All', '全部')}</button>${Ps.map(p => `<button class="btn" data-v="${esc(p)}">${esc(pz(p))} <span class="mut">${rows.filter(r => r.p === p).length}</span></button>`).join('')}</div>
    <div class="flab">${L('Geography', '地区')}</div><div class="chips" id="roG"><button class="btn on" data-v="">${L('All', '全部')}</button>${Gs.map(p => `<button class="btn" data-v="${esc(p)}">${esc(pz(p))} <span class="mut">${rows.filter(r => r.g === p).length}</span></button>`).join('')}</div>
@@ -832,7 +839,7 @@ function rollout() {
   [['#roP', 'p'], ['#roG', 'g']].forEach(([s, k]) => $$(s + ' button').forEach(b => b.onclick = () => { $$(s + ' button').forEach(x => x.classList.toggle('on', x === b)); st[k] = b.dataset.v; apply(); }));
   $$('#rotl .tli').forEach(x => { const tg = () => { x.classList.toggle('open'); x.setAttribute('aria-expanded', x.classList.contains('open')); }; x.onclick = e => { if (!e.target.closest('a')) tg(); }; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tg(); } }; });
   $('#roAll').onclick = e => { e.stopPropagation(); const open = !$$('#rotl .tli').every(x => x.classList.contains('open')); $$('#rotl .tli').forEach(x => x.classList.toggle('open', open)); $('#roAll').textContent = open ? L('Collapse all', '全部收起') : L('Expand all', '全部展开'); };
-  apply();
+  apply(); growthWire();
   const yr = r => { const m = r.d.match(/(20\d{2})/); if (m) return m[1]; const q = r.d.match(/Q[1-4]'(\d{2})/); if (q) return '20' + q[1]; const l = r.letter.match(/(20\d{2})/); return l ? l[1] : ''; };
   const Ys = uniq(rows.map(yr)).sort(); const pal = [C.acc, C.g, C.acc2, C.b, C.p, C.y, C.r, C.t];
   wireCard({id: 'roC', build: () => ({labels: Ys, stacked: true, datasets: Ps.map((p, i) => ({type: 'bar', label: pz(p), data: Ys.map(y => rows.filter(r => yr(r) === y && r.p === p).length), backgroundColor: pal[i % pal.length]})), scales: {x: {stacked: true}, y: {stacked: true, ticks: {precision: 0}}}})});
@@ -919,6 +926,136 @@ function finTab() {
   $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
   finShow((location.hash.split('/')[1] || 'bs'));
 }
+/* ---------------- Added sections (extra.js): loss-ratio breakdown, growth by product & state, cash runway, insider selling over time, cohorts, bear checks, what changed this week ---------------- */
+const X = window.LMND_EXTRA || null;
+const XQ = X ? X.quarters.map(qshort) : [];
+const srcA = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t || L('source', '来源'))}</a>`;
+const qsrc = () => X.quarters.map((q, i) => srcA(X.letters[i], qshort(q))).join(' · ');
+/* figure card: big number on top, chart behind it (same look as the Overview KPI cards) */
+function fcard(id, label, v, s, key) { return `<div class="card kpi"><div class="l">${label}${key ? ' ' + info(key) : ''}</div><div class="v">${v}</div><div class="s">${s}</div><div class="spark"><canvas id="${id}"></canvas></div></div>`; }
+const xs = (id, data, labels) => { const c = spark(id, data, C.acc, labels || XQ); if (c) { c.data.datasets[0].pointRadius = data.map((_, j) => j === data.length - 1 ? 3.5 : 0); c.data.datasets[0].pointBackgroundColor = C.acc; c.update('none'); } };
+const pp = v => v == null ? NA() : (v < 0 ? '(' + Math.abs(v) + '%)' : v + '%');
+
+/* 7) What changed this week — Overview */
+function weekCard() {
+  if (!X) return ''; const W = X.week;
+  const kind = {company: [L('Company', '公司'), 'acc'], market: [L('Market', '市场'), 'other'], social: [L('X commentary', 'X 评论'), 'other']};
+  const fl = W.filings.length ? W.filings.map(f => `<li><b>${esc(dlong(f.date))}</b> · SEC ${esc(f.form)} · ${srcA(f.url, 'EDGAR')}</li>`).join('')
+    : `<li>${L(`No new SEC filings between ${dlong(W.from)} and ${dlong(W.to)}.`, `${dlong(W.from)}至${dlong(W.to)}期间没有新的 SEC 申报文件。`)}${W.last_filing ? ' ' + L(`Latest: Form ${esc(W.last_filing.form)} on ${dlong(W.last_filing.date)}`, `最近一份：${dlong(W.last_filing.date)} 的 Form ${esc(W.last_filing.form)}`) + ' · ' + srcA(W.last_filing.url, 'EDGAR') : ''}</li>`;
+  const it = [...W.finds].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li><b>${esc(dlong(x.date))}</b> <span class="pill ${kind[x.kind][1]}">${kind[x.kind][0]}</span> ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('');
+  return `<div class="card wkcard" style="margin-bottom:16px;border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What changed this week', '本周变化')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', '来自 SEC EDGAR 及每日 X 与网络扫描')}</span></h3>
+   <div class="flab">${L('SEC filings', 'SEC 申报文件')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first)', '扫描发现（最新在前）')}</div><ul class="lst">${it}</ul></div>`;
+}
+
+/* 1) Loss-ratio breakdown — Insurance KPIs (replaces the old components chart) */
+function lrBlock() {
+  if (!X) return ''; const R = X.lr; const n = XQ.length - 1;
+  const rows = XQ.map((q, i) => [q, pp(R.attr[i]), pp(R.cat[i]), pp(R.lae[i]), pp(R.ppd[i]), pp(R.cat_ppd[i]), pp(R.noncat_ppd[i]), pp(R.glr[i])]).reverse();
+  return `<h3 id="lrbd">${L('Loss-ratio breakdown', '赔付率拆解')} <span class="mut" style="font-size:12px;font-weight:400">${esc(X.quarters[0])} – ${esc(X.quarters[n])}</span></h3>
+   <div class="grid g4" style="margin-bottom:16px">${[['lrG', L('Gross loss ratio', '毛赔付率'), R.glr, 'GLR'], ['lrA', L('Current-year attritional', '当年常规赔付'), R.attr, null], ['lrC', L('Catastrophe losses (excl. PPD)', '巨灾损失（不含 PPD）'), R.cat, 'CAT'], ['lrP', L('Prior-year reserve development', '以前年度准备金进展'), R.ppd, 'PPD']].map(([id, l, s, k]) =>
+     fcard(id, l, pp(s[n]), `${esc(XQ[n])} · ${L('year ago', '去年同期')} ${pp(s[n - 4])}`, k)).join('')}</div>
+   ${ccard({id: 'kLrB', title: L('Gross loss ratio split: attritional + CAT + LAE + prior-year development (pp of GEP)', '毛赔付率拆分：常规 + 巨灾 + LAE + 以前年度进展（占 GEP 百分点）'), tip: 'GLR'})}
+   ${tableBlock({title: L('Gross loss ratio breakdown by quarter (newest first)', '各季度毛赔付率拆解（最新在前）'), columns: [L('Quarter', '季度'), L('Attritional', '常规'), L('CAT excl. PPD', 'CAT（不含 PPD）'), L('LAE excl. PPD', 'LAE（不含 PPD）'), L('Prior-year development', '以前年度进展'), L('of which CAT PPD', '其中 CAT PPD'), L('of which non-CAT PPD', '其中非 CAT PPD'), L('Gross loss ratio', '毛赔付率')], rows,
+     notes: [L('Attritional + CAT + LAE + PPD = gross loss ratio; negative PPD means earlier-year reserves were released (favourable).', '常规 + 巨灾 + LAE + PPD = 毛赔付率；PPD 为负表示释放了以前年度准备金（有利）。'), L('Source', '来源') + ': ' + srcA(R.src, tr(R.src_note))]}, {id: 'tLrB', raw: true})}`;
+}
+function lrWire() {
+  if (!X) return; const R = X.lr;
+  [['lrG', R.glr], ['lrA', R.attr], ['lrC', R.cat], ['lrP', R.ppd]].forEach(([id, s]) => xs(id, s));
+  wireCard({id: 'kLrB', unit: '%', build: () => ({labels: XQ, stacked: true, datasets: [{type: 'bar', label: L('Attritional', '常规'), data: R.attr, backgroundColor: C.acc, stack: 's'}, {type: 'bar', label: L('CAT excl. PPD', 'CAT（不含 PPD）'), data: R.cat, backgroundColor: C.y, stack: 's'},
+    {type: 'bar', label: L('LAE excl. PPD', 'LAE（不含 PPD）'), data: R.lae, backgroundColor: C.b, stack: 's'}, {type: 'bar', label: L('Prior-year development', '以前年度进展'), data: R.ppd, backgroundColor: C.r, stack: 's'},
+    {type: 'line', label: L('Gross loss ratio', '毛赔付率'), data: R.glr, borderColor: C.g, keep: true}], scales: {y: {stacked: true, ticks: {callback: v => v + '%'}}}})});
+}
+
+/* 5) Cohort & retention — Insurance KPIs */
+function cohortBlock() {
+  if (!X) return '';
+  return `<h3>${L('Cohorts & retention', '客户群与留存')}</h3><div class="grid g2" style="margin-bottom:16px">
+   <div class="card"><div class="mut" style="font-size:12.5px;margin-bottom:6px">${L('Lemonade’s letters and 10-Q do not publish annual dollar retention or premium per customer by signup cohort, so no cohort table is shown. What the filings do say about cohorts, newest first:', 'Lemonade 的股东信和 10-Q 未按签约年份披露年度金额留存率或单客户保费，因此不显示客户群表格。以下是申报文件中关于客户群的内容（最新在前）：')}</div>
+    <ul class="lst">${X.cohort.map(c => `<li><b>${esc(dlong(c.date))}</b> · ${esc(tr(c.q))}${L(':', '：')} ${esc(tr(c.txt))} · ${srcA(c.src)}</li>`).join('')}</ul></div>
+   <div class="grid g2">${fcard('chAdr', L('Annual dollar retention', '年度金额留存率'), X.adr[X.adr.length - 1] + '%', `${esc(XQ[XQ.length - 1])} · ${L('whole book', '全部业务')} · ${qsrc()}`, 'ADR')}${fcard('chPpc', L('Premium per customer', '单客户保费'), '$' + fmt(X.ppc[X.ppc.length - 1]), `${esc(XQ[XQ.length - 1])} · ${L('whole book', '全部业务')} · ${qsrc()}`, 'PPC')}</div></div>`;
+}
+function cohortWire() { if (!X) return; xs('chAdr', X.adr); xs('chPpc', X.ppc); }
+
+/* 2) Growth by product & state — Product Rollout */
+const PRODZ = {'Homeowners multi-peril': '房主综合险（含租客）', Pet: '宠物险', Car: '车险', 'Europe (all products)': '欧洲（全部产品）', Other: '其他（含寿险）'};
+function growthBlock() {
+  if (!X) return ''; const I = X.ifp, n = XQ.length - 1; const P = ['Pet', 'Car', 'Homeowners multi-peril', 'Europe (all products)', 'Other'];
+  const yoy = s => s[n - 4] ? (s[n] / s[n - 4] - 1) * 100 : null;
+  return `<h3 style="margin-top:0">${L('Growth by product and state', '按产品与州划分的增长')} <span class="mut" style="font-size:12px;font-weight:400">${L('in-force premium by product, ', '各产品有效保费，')}${esc(X.quarters[0])} – ${esc(X.quarters[n])}</span></h3>
+   <div class="grid g4" style="margin-bottom:12px">${P.slice(0, 4).map((p, k) => fcard('gp' + k, `${esc(L(p, PRODZ[p]))} IFP`, money(I[p][n], 0), `<span class="${pcls(yoy(I[p]))}">${pct(yoy(I[p]))}</span> ${L('YoY', '同比')} · ${fmt(I[p][n] / I.total[n] * 100, 0)}% ${L('of IFP', '占 IFP')}`, 'IFP')).join('')}</div>
+   ${tableBlock({title: L('IFP by product ($m) and customers, newest first', '各产品 IFP（百万美元）与客户数，最新在前'), columns: [L('Quarter', '季度'), ...P.map(p => L(p, PRODZ[p])), L('Total IFP', 'IFP 合计'), L('Customers', '客户数'), L('Source', '来源')],
+     rows: XQ.map((q, i) => [q, ...P.map(p => I[p][i]), I.total[i], I.customers[i], `<a href="${esc(I.src[i])}" target="_blank" rel="noopener">${L('letter', '股东信')}</a>`]).reverse(),
+     notes: [L('Customers are disclosed only for the whole company, not per product. Renters are reported inside Homeowners multi-peril (home, condo and renters); Life is not broken out.', '客户数仅按公司整体披露，未按产品披露。租客险包含在房主综合险（房屋、公寓和租客）中；寿险未单独披露。')]}, {id: 'tGp', raw: true})}
+   <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('State launches since Q2 2025 (newest first)', '2025 年第二季度以来的州上线（最新在前）')}</h3><ul class="lst">${X.launches.map(x => `<li><b>${esc(dlong(x.date))}</b> · <span class="pill acc">${esc(tr(x.states))}</span> ${esc(tr(x.what))} · ${srcA(x.src, tr(x.by))}</li>`).join('')}</ul></div>`;
+}
+function growthWire() { if (!X) return; ['Pet', 'Car', 'Homeowners multi-peril', 'Europe (all products)'].forEach((p, k) => xs('gp' + k, X.ifp[p])); }
+
+/* 3) Cash runway — Financials › Cash Flow */
+function runwayBlock() {
+  if (!X) return ''; const K = X.cash, n = XQ.length - 1;
+  const rw = K.runway_q != null ? L(`~${fmt(K.runway_q)} quarters`, `约 ${fmt(K.runway_q)} 个季度`) : L('No burn', '无消耗');
+  return `<h3 style="margin-top:0">${L('Cash runway', '现金跑道')} <span class="mut" style="font-size:12px;font-weight:400">${esc(X.quarters[0])} – ${esc(X.quarters[n])}</span></h3>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${fcard('rwC', L('Cash & investments', '现金及投资'), money(K.cash[n], 0), `${esc(XQ[n])} · ${srcA(K.src[n], L('letter', '股东信'))}`)}
+    ${fcard('rwO', L('Operating cash flow', '经营现金流'), money(K.opcf[n]), `${esc(XQ[n])} · ${L('TTM free cash flow', 'TTM 自由现金流')} ${money(K.ttm_fcf)}`)}
+    ${fcard('rwG', L('General Catalyst Synthetic Agents debt', 'General Catalyst Synthetic Agents 借款'), money(K.gc[n]), `${esc(XQ[n])} · ${L('interest', '利息')} $${fmt(K.gc_int['Q2 2026'], 1)}m ${L('in the quarter', '（本季度）')} · ${srcA(K.gc_terms_src, '10-Q')}`, 'Synthetic Agents')}
+    ${fcard('rwR', L('Runway at current burn', '按当前消耗的跑道'), rw, L(`cash & investments ÷ ${XQ[n]} free cash outflow of ${money(-K.fcf[n])}`, `现金及投资 ÷ ${XQ[n]} 自由现金流出 ${money(-K.fcf[n])}`))}</div>
+   ${ccard({id: 'rwCh', title: L('Operating cash flow, free cash flow and Synthetic Agents debt ($m)', '经营现金流、自由现金流与 Synthetic Agents 借款（百万美元）'), tip: 'Synthetic Agents', unit: '$m'})}
+   ${fnote([L(`Runway is a simple ratio: ${XQ[n]} cash & investments of ${money(K.cash[n], 0)} divided by that quarter’s free cash outflow (operating cash flow minus capex). Free cash flow over the last four quarters was ${money(K.ttm_fcf)}, i.e. not burning on a TTM basis. Much of the cash sits in regulated insurance subsidiaries and cannot all be moved to the parent.`, `跑道为简单比率：${XQ[n]} 现金及投资 ${money(K.cash[n], 0)} 除以该季度自由现金流出（经营现金流减资本支出）。过去四个季度自由现金流为 ${money(K.ttm_fcf)}，即按 TTM 计并未消耗现金。大部分现金位于受监管的保险子公司，不能全部转至母公司。`),
+     L('GC terms (10-Q): GC advances 50–80% of growth spend and is repaid from cohort premiums with a 16% return; up to $200m more for 2026; from 1 Jan 2027 new financing moves to Hannover Re (up to $250m outstanding).', 'GC 条款（10-Q）：GC 预付 50–80% 的增长支出，以客户群保费偿还，回报率 16%；2026 年追加最多 2 亿美元；自 2027 年 1 月 1 日起，新增融资转至 Hannover Re（未偿余额最高 2.5 亿美元）。') + ' ' + srcA(K.gc_terms_src, '10-Q'),
+     L('Quarterly figures', '季度数据') + ': ' + qsrc()], L('Notes & sources', '注释与来源'), true)}`;
+}
+function runwayWire() {
+  if (!X) return; const K = X.cash; xs('rwC', K.cash); xs('rwO', K.opcf); xs('rwG', K.gc); xs('rwR', K.fcf);
+  wireCard({id: 'rwCh', unit: '$m', build: () => ({labels: XQ, datasets: [{type: 'bar', label: L('Operating cash flow', '经营现金流'), data: K.opcf, backgroundColor: C.acc}, {type: 'bar', label: L('Free cash flow', '自由现金流'), data: K.fcf, backgroundColor: C.r},
+    {type: 'line', label: L('Synthetic Agents debt (EOP)', 'Synthetic Agents 借款（期末）'), data: K.gc, borderColor: C.g, yAxisID: 'y1'}], scales: {y1: {position: 'right', grid: {drawOnChartArea: false}}}})});
+}
+
+/* 4) Insider selling over time — Insiders (from Form 4 lines in data.js) */
+const IGRP = r => /schreiber/i.test(r.insider) ? 'Schreiber' : /wininger/i.test(r.insider) ? 'Wininger' : /director/i.test(r.role || '') && !/officer|chief|president/i.test(r.role || '') ? 'Board' : 'Other officers';
+const IGZ = {Schreiber: ['Daniel Schreiber (CEO)', 'Daniel Schreiber（CEO）'], Wininger: ['Shai Wininger (President)', 'Shai Wininger（总裁）'], 'Other officers': ['Other officers', '其他高管'], Board: ['Board (non-executive)', '董事会（非执行）']};
+const accUrl = f => 'https://www.sec.gov/Archives/edgar/data/1691421/' + String(f || '').replace('.xml', '').replace(/-/g, '') + '/';
+function isellRows() { return D.form4.filter(r => (r.code === 'S' || r.code === 'P') && r.tdate >= '2025-04-01' && r.price).map(r => ({...r, g: IGRP(r), v: (r.code === 'S' ? 1 : -1) * r.shares * r.price, k: r.code === 'P' ? 'buy' : r.plan ? 'planned' : r.tax ? 'tax' : 'nonplan'})).sort((a, b) => a.tdate.localeCompare(b.tdate)); }
+function isellBlock() {
+  const rs = isellRows(); const G = Object.keys(IGZ); const tot = g => rs.filter(r => r.g === g).reduce((a, r) => a + r.v, 0);
+  const KL = {planned: L('10b5-1 plan', '10b5-1 计划'), nonplan: L('Discretionary', '自主决定'), tax: L('Sell-to-cover (tax)', '缴税出售'), buy: L('Purchase', '买入')};
+  const by = k => rs.filter(r => r.k === k).reduce((a, r) => a + r.v, 0);
+  return `<h3>${L('Insider selling over time', '内部人出售走势')} <span class="mut" style="font-size:12px;font-weight:400">${L(`Form 4, ${dlong(rs[0].tdate)} – ${dlong(rs[rs.length - 1].tdate)}`, `Form 4，${dlong(rs[0].tdate)} – ${dlong(rs[rs.length - 1].tdate)}`)}</span></h3>
+   <div class="grid g4" style="margin-bottom:12px">${G.map((g, k) => fcard('isg' + k, esc(L(...IGZ[g])), '$' + fmt(tot(g) / 1e6, 2) + 'm', L(`net sold · ${rs.filter(r => r.g === g).length} sale lines`, `净出售 · ${rs.filter(r => r.g === g).length} 笔出售记录`))).join('')}</div>
+   ${ccard({id: 'isCum', title: L('Cumulative net insider sales ($m)', '内部人累计净出售（百万美元）'), tip: '10b5-1', h: 300})}
+   <div class="mut" style="font-size:12.5px;margin:6px 0 10px">${L('By type', '按类型')}: ${['planned', 'nonplan', 'tax'].map(k => `<span class="pill ${k}">${KL[k]}</span> $${fmt(by(k) / 1e6, 2)}m`).join(' · ')}</div>
+   ${details(L('Every sale, newest first, with its Form 4', '每笔出售（最新在前）及其 Form 4'), tableBlock({columns: [L('Date', '日期'), L('Insider', '内部人'), L('Group', '组别'), L('Type', '类型'), L('Shares', '股数'), L('Price', '价格'), L('Value', '金额'), 'Form 4'],
+     rows: [...rs].reverse().map(r => [r.tdate, r.insider, L(...IGZ[r.g]), `<span class="pill ${r.k === 'buy' ? 'other' : r.k}">${KL[r.k]}</span>`, r.shares, '$' + fmt(r.price, 2), '$' + fmt(Math.abs(r.v)), `<a href="${accUrl(r.filing)}" target="_blank" rel="noopener">EDGAR</a>`])}, {id: 'tIsell', raw: true, notitle: 1}), L(`${rs.length} lines`, `${rs.length} 条`))}
+   ${fnote([L('Net sales = open-market sales (code S) minus purchases (code P), at the Form 4 price. 10b5-1 = sale under a pre-set Rule 10b5-1 plan (box or footnote); sell-to-cover = shares sold to pay tax on vesting RSUs; discretionary = any other sale. Shai Wininger filed no sales in this window. Gifts, grants and option exercises are excluded.', '净出售 = 公开市场出售（代码 S）减买入（代码 P），按 Form 4 价格计算。10b5-1 = 依据预设 Rule 10b5-1 计划出售（勾选框或脚注）；缴税出售 = 为支付 RSU 归属税款而出售；自主决定 = 其他出售。此期间 Shai Wininger 没有出售申报。赠与、授予和期权行权不计入。')], L('How this is counted', '计算方式'), true)}`;
+}
+function isellWire() {
+  const rs = isellRows(); const G = Object.keys(IGZ); const days = [...new Set(rs.map(r => r.tdate))];
+  const cum = g => { let a = 0; return days.map(d => { rs.filter(r => r.g === g && r.tdate === d).forEach(r => a += r.v); return +(a / 1e6).toFixed(3); }); };
+  G.forEach((g, k) => { const c = cum(g); xs('isg' + k, c.length ? c : [0], days); });
+  const pal = [C.acc, C.g, C.b, C.y];
+  wireCard({id: 'isCum', unit: '$m', build: () => ({type: 'line', labels: days.map(d => dl(mdy(d) + (LANG === 'zh' ? '' : ' ’' + d.slice(2, 4)))), datasets: G.map((g, k) => ({label: L(...IGZ[g]), data: cum(g), borderColor: pal[k], stepped: true, pointRadius: days.map(d => rs.some(r => r.g === g && r.tdate === d) ? 3 : 0),
+    pointBackgroundColor: pal[k]})), scales: {y: {title: {display: true, text: '$m'}}}})});
+}
+
+/* 6) Bear checks — Metrics & Street */
+function bearBlk() {
+  const el = $('#blk-bear'); if (!el || !X) return; const pb = X.pb, PL = X.pb_latest, S = X.si; const s0 = S[S.length - 1];
+  el.innerHTML = `<h2 class="bh">${L('Bear checks', '空头检验')} <span class="mut">${L('price/book, litigation, short interest', '市净率、诉讼、空头头寸')}</span></h2>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${fcard('brPb', L('Price / book', '市净率'), fmt(PL.pb, 2) + 'x', L(`$${fmt(PL.close, 2)} close ${dlong(PL.date)} ÷ ${PL.bv_q} book value $${fmt(PL.bvps, 2)}/share`, `${dlong(PL.date)} 收盘 $${fmt(PL.close, 2)} ÷ ${PL.bv_q} 每股账面价值 $${fmt(PL.bvps, 2)}`))}
+    ${fcard('brSi', L('Short interest', '空头头寸'), fmt(s0[1] / 1e6, 2) + 'm ' + L('shares', '股'), L(`${dlong(s0[0])} · ${fmt(s0[1] / 1e6 / X.shares_latest * 100, 1)}% of shares outstanding · ${fmt(s0[2], 1)} days to cover`, `${dlong(s0[0])} · 占流通在外股数 ${fmt(s0[1] / 1e6 / X.shares_latest * 100, 1)}% · 回补天数 ${fmt(s0[2], 1)} 天`))}
+    ${fcard('brDc', L('Days to cover', '回补天数'), fmt(s0[2], 1), L(`FINRA settlement ${dlong(s0[0])}`, `FINRA 结算日 ${dlong(s0[0])}`))}
+    ${fcard('brBv', L('Book value per share', '每股账面价值'), '$' + fmt(PL.bvps, 2), L(`${PL.bv_q} · equity ÷ shares outstanding`, `${PL.bv_q} · 股东权益 ÷ 流通在外股数`))}</div>
+   ${charts2([{id: 'brPbC', title: L('Price / book at each quarter end (x)', '各季度末市净率（倍）')}, {id: 'brSiC', title: L('Short interest (m shares) and days to cover', '空头头寸（百万股）与回补天数')}])}
+   ${tableBlock({title: L('Price / book by quarter (newest first)', '各季度市净率（最新在前）'), columns: [L('Quarter', '季度'), L('Close', '收盘价'), L('Book value / share', '每股账面价值'), L('P/B', '市净率'), L('Source', '来源')],
+     rows: [[L(`Latest (${PL.date})`, `最新（${PL.date}）`), '$' + fmt(PL.close, 2), '$' + fmt(PL.bvps, 2), fmt(PL.pb, 2) + 'x', srcA(X.px_src, 'Nasdaq') + ' · ' + srcA(pb[pb.length - 1].src, L('letter', '股东信'))], ...[...pb].reverse().map(r => [qshort(r.q), '$' + fmt(r.close, 2), '$' + fmt(r.bvps, 2), fmt(r.pb, 2) + 'x', srcA(X.px_src, 'Nasdaq') + ' · ' + srcA(r.src, L('letter', '股东信'))])]}, {id: 'tPb', raw: true})}
+   <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('Litigation status', '诉讼状态')}</h3><ul class="lst">${X.legal.map(x => `<li><b>${esc(dlong(x.date))}</b> · ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('')}</ul>
+    <div class="mut" style="font-size:12px">${L('No Homesite lawsuit or settlement appears in Lemonade’s 10-Q, shareholder letters or news search, so none is shown.', 'Lemonade 的 10-Q、股东信及新闻检索中均未出现 Homesite 诉讼或和解，因此不予显示。')}</div></div>
+   ${fnote([L('Short interest: FINRA consolidated equity short interest, twice-monthly settlement dates', '空头头寸：FINRA 综合股票空头头寸，每月两次结算日') + ' · ' + srcA(X.si_src, L('FINRA', 'FINRA 数据')), L('Book value: stockholders’ equity ÷ shares outstanding at quarter end, from the shareholder letters; closes from Nasdaq historical prices.', '账面价值：季度末股东权益 ÷ 流通在外股数，来自股东信；收盘价来自 Nasdaq 历史价格。') + ' ' + qsrc()], L('Notes & sources', '注释与来源'), true)}`;
+  xs('brPb', [...pb.map(r => r.pb), PL.pb], [...XQ, PL.date]); xs('brSi', S.map(r => r[1] / 1e6), S.map(r => r[0])); xs('brDc', S.map(r => r[2]), S.map(r => r[0])); xs('brBv', pb.map(r => r.bvps));
+  wireCard({id: 'brPbC', unit: 'x', build: () => ({labels: [...XQ, L('Latest', '最新')], datasets: [{type: 'bar', label: L('Price / book', '市净率'), data: [...pb.map(r => r.pb), PL.pb], backgroundColor: C.acc}]})});
+  wireCard({id: 'brSiC', build: () => ({labels: S.map(r => dl(mdy(r[0]) + (LANG === 'zh' ? '' : ' ’' + r[0].slice(2, 4)))), datasets: [{type: 'bar', label: L('Short interest (m shares)', '空头头寸（百万股）'), data: S.map(r => +(r[1] / 1e6).toFixed(2)), backgroundColor: C.acc, unit: 'm'}, {type: 'line', label: L('Days to cover', '回补天数'), data: S.map(r => r[2]), borderColor: C.g, yAxisID: 'y1', unit: L('days', '天')}], scales: {y1: {position: 'right', grid: {drawOnChartArea: false}}}})});
+}
 const TABS = [['overview', 'Overview', overview], ['fin', 'Financial Statements', finTab], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
   ['rollout', 'Product Rollout', rollout, 'rollout'],
   ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources & Live feed', sources]]
@@ -930,7 +1067,7 @@ const TABZ = {overview: '概览', fin: '财务报表', kpis: '保险 KPI', histo
 /* Sources & Live feed is a nav tab (Hugo asked for it, like Micron's) */
 const NONAV = new Set([]);
 /* old links: retired tabs land somewhere sensible */
-const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview'};
+const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview', bear: '#metrics/bear', runway: '#fin/cf'};
 const done = {};
 function route() {
   let id = (location.hash || '#overview').slice(1).split('/')[0];
