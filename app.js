@@ -1056,14 +1056,122 @@ function bearBlk() {
   wireCard({id: 'brPbC', unit: 'x', build: () => ({labels: [...XQ, L('Latest', '最新')], datasets: [{type: 'bar', label: L('Price / book', '市净率'), data: [...pb.map(r => r.pb), PL.pb], backgroundColor: C.acc}]})});
   wireCard({id: 'brSiC', build: () => ({labels: S.map(r => dl(mdy(r[0]) + (LANG === 'zh' ? '' : ' ’' + r[0].slice(2, 4)))), datasets: [{type: 'bar', label: L('Short interest (m shares)', '空头头寸（百万股）'), data: S.map(r => +(r[1] / 1e6).toFixed(2)), backgroundColor: C.acc, unit: 'm'}, {type: 'line', label: L('Days to cover', '回补天数'), data: S.map(r => r[2]), borderColor: C.g, yAxisID: 'y1', unit: L('days', '天')}], scales: {y1: {position: 'right', grid: {drawOnChartArea: false}}}})});
 }
+/* ---------------- Risk & Q3 tab (more.js): reinsurance, catastrophe exposure, Synthetic Agents financing, Car tracker, Q3 2026 earnings preview ---------------- */
+const MX = window.LMND_MORE || null;
+const MQ = MX ? MX.quarters.map(qshort) : [];
+const lsrc = i => srcA(MX.letters[i], L(`${qshort(MX.quarters[i])} letter, ${dlong(MX.ldate[i])}`, `${qshort(MX.quarters[i])} 股东信，${dlong(MX.ldate[i])}`));
+const qsrcM = () => MX.quarters.map((q, i) => srcA(MX.letters[i], qshort(q))).join(' · ');
+const tqsrc = () => srcA(MX.tenq, L(`Q2 2026 10-Q, ${dlong(MX.tenq_d)}`, `2026 年第二季度 10-Q，${dlong(MX.tenq_d)}`));
+const ZTX = {
+ 'Whole-account quota share with Hannover Re and MAPFRE renewed 1 Jul 2026 – 30 Jun 2027: effective cession cut from ~20% to ~18% of premium; new $40m limit per loss occurrence and $100m aggregate, catastrophe losses included. Other terms similar.': '与 Hannover Re 和 MAPFRE 的全账户成数分保于 2026 年 7 月 1 日续约至 2027 年 6 月 30 日：有效分出比例由约 20% 降至约 18%；新增每次事故 4,000 万美元、累计 1 亿美元的限额（含巨灾损失）。其他条款相近。',
+ 'Property per-risk excess-of-loss contract (claims above $750k, up to $2.25m) expired 30 Jun 2026 and was not renewed.': '财产险险位超赔合同（75 万美元以上、最高 225 万美元的赔款）于 2026 年 6 月 30 日到期，未续约。',
+ 'Bermuda captive catastrophe excess-of-loss (above $50m per occurrence): renewed for LIC with a $50m limit per occurrence and in aggregate; not renewed for MIC.': '百慕大自保公司巨灾超赔（每次事故 5,000 万美元以上）：LIC 续约，每次事故及累计限额 5,000 万美元；MIC 未续约。',
+ 'Captive quota share (Lemonade Re SPC) cession raised: MIC 35% → 40%, LIC 15% → 25%, from 1 Jul 2026.': '自保公司（Lemonade Re SPC）成数分保比例自 2026 年 7 月 1 日上调：MIC 由 35% 升至 40%，LIC 由 15% 升至 25%。',
+ 'Letter: the renewal adds protection against named storms, which the prior structure excluded, and shifts strategy from broad quota share toward targeted catastrophe protection in homeowners.': '股东信：续约新增了对命名风暴的保障（旧结构不保），策略由广泛的成数分保转向针对房主险巨灾波动的精准保障。',
+ 'Prior program (1 Jul 2025 – 30 Jun 2026): ~20% of premium ceded; hurricanes excluded; $10m per-occurrence limit on non-hurricane catastrophes; $750k per-risk cap; loss-ratio caps and variable ceding commission; funds-withheld.': '上一期计划（2025 年 7 月 1 日至 2026 年 6 月 30 日）：分出约 20% 保费；不含飓风；非飓风巨灾每次事故限额 1,000 万美元；单一风险上限 75 万美元；设赔付率上限与浮动分保佣金；资金留存方式结算。',
+ 'Hurricane Isaias (Florida Panhandle landfall 9 Oct): modelers put private insured losses at $1–3b. Lemonade has not commented on its exposure; Q3 results will be the first read.': '飓风 Isaias（10 月 9 日在佛罗里达狭长地带登陆）：模型机构估计私营保险损失为 10 亿至 30 亿美元。Lemonade 尚未就其敞口发表评论，第三季度业绩将是首个参考。',
+ '10-Q: January 2025 California wildfires — subrogation rights cut net unpaid losses by $4.2m; California FAIR Plan assessment paid and expensed in Q1 2025.': '10-Q：2025 年 1 月加州山火——代位求偿权使未付净赔款减少 420 万美元；加州 FAIR Plan 摊派已于 2025 年第一季度支付并费用化。',
+ 'Original Customer Investment Agreement, through 31 Dec 2024': '原始客户投资协议，至 2024 年 12 月 31 日',
+ 'Amended: up to an additional $140m through 31 Dec 2025': '修订：至 2025 年 12 月 31 日最多追加 1.4 亿美元',
+ 'Amended: up to an additional $200m for 1 Jan – 31 Dec 2026': '修订：2026 年 1 月 1 日至 12 月 31 日最多追加 2 亿美元',
+ 'New Business Financing Agreement with Hannover Re from 1 Jan 2027: up to 80% of monthly growth spend, ≤$20m per cohort; max outstanding $150m in 2027 and $250m in 2028; return = max(0, 3-year T-bill) + 5.8% (letter: ~9.8% cost, >600 bps below GC).': '与 Hannover Re 的新业务融资协议，自 2027 年 1 月 1 日起：最高为每月增长支出的 80%，每个客户群不超过 2,000 万美元；2027 年未偿余额上限 1.5 亿美元，2028 年 2.5 亿美元；回报 = max(0, 三年期美国国债利率) + 5.8%（股东信：成本约 9.8%，比 GC 低 600 多个基点）。',
+ 'Florida FSD discount not yet live; Shai Wininger says it will be announced as soon as it is available': '佛罗里达 FSD 折扣尚未上线；Shai Wininger 表示一旦可用将立即公布',
+ 'Tesla HW3 / FSD v14 Lite support (30% off FSD miles)': '支持特斯拉 HW3 / FSD v14 Lite（FSD 里程 7 折）',
+ 'Car and Autonomous Car launched together': '车险与自动驾驶车险同时上线',
+ 'Autonomous Car (50% off FSD miles)': '自动驾驶车险（FSD 里程 5 折）',
+ 'Autonomous Car (Tesla FSD)': '自动驾驶车险（特斯拉 FSD）',
+ 'Autonomous Car launch: ~50% off FSD miles; Arizona first, Oregon in February': '自动驾驶车险推出：FSD 里程约 5 折；先在亚利桑那，2 月扩展至俄勒冈',
+ 'Car launched in Pennsylvania (13th Car state)': '车险在宾夕法尼亚上线（第 13 个车险州）',
+ 'Car launched in Missouri': '车险在密苏里上线',
+ 'Car launched in Florida (~50% of US car market now covered)': '车险在佛罗里达上线（已覆盖约 50% 的美国车险市场）',
+ 'Car launched in Indiana (~42% of the US car market covered)': '车险在印第安纳上线（覆盖约 42% 的美国车险市场）',
+ 'Texas Car is written through a fronting arrangement with a third-party carrier (assumed premium).': '得克萨斯车险通过第三方保险公司的出单安排承保（分入保费）。',
+ California: '加利福尼亚', Texas: '得克萨斯', Florida: '佛罗里达'};
+const mz = s => LANG === 'zh' && ZTX[s] ? ZTX[s] : s;
+const M1 = v => v == null ? NA() : money(v);
+function riskTab() {
+  const s = $('#s-risk'); if (!MX) { s.innerHTML = `<div class="tvfail">${L('Data file missing', '数据文件缺失')}</div>`; return; }
+  const n = MQ.length - 1, R = MX.re, CT = MX.cat, G = MX.gc, CR = MX.car, Q = MX.q3;
+  const sub = t => `<span class="mut" style="font-size:12px;font-weight:400">${t}</span>`;
+  const li = a => a.map(x => `<li><b>${esc(dlong(x.date))}</b>${x.st ? ` · <span class="pill acc">${esc(x.st)}</span>` : ''} ${esc(mz(x.txt))} · ${srcA(x.src)}</li>`).join('');
+  const share = CR.ifp.map((v, i) => +(v / CR.tot[i] * 100).toFixed(1));
+  const commitTot = G.commit.reduce((a, c) => a + c.amt, 0);
+  const rng = r => r.lo == null ? NA() : r.u === 'sh' ? `${r.lo}m` : r.lo === r.hi ? money(r.lo, 0) : `${money(r.lo, 0)} – ${money(r.hi, 0)}`;
+  const mid = r => r.lo == null ? null : (r.lo + r.hi) / 2;
+  s.innerHTML = `<h2 class="bh">${L('Risk & Q3 preview', '风险与三季度前瞻')} ${sub(L('reinsurance, catastrophe exposure, growth financing, Car and the 5 Nov results', '再保险、巨灾敞口、增长融资、车险及 11 月 5 日业绩'))}</h2>
+  <div class="sblk" id="blk-q3"><h3>${L('Q3 2026 earnings preview', '2026 年第三季度业绩前瞻')} ${sub(L(`results ${dlong(Q.date)} before US market open · call 8:00 am ET (9:00 pm SGT)`, `${dlong(Q.date)} 美股开盘前公布 · 电话会美东时间上午 8:00（新加坡时间晚上 9:00）`) + ' · ' + srcA(Q.call_src))}</h3>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${fcard('q3I', L('IFP guidance', 'IFP 指引'), `${money(1537, 0)}–${fmt(1540)}m`, `${L('vs', '对比')} ${MQ[n]} ${money(1434, 0)} · ${lsrc(n)}`, 'IFP')}
+    ${fcard('q3R', L('Revenue guidance', '营收指引'), `${money(323, 0)}–${fmt(326)}m`, `${L('Street', '华尔街')} ${money(322.74, 2)} · ${srcA(Q.street_src, 'MarketBeat ' + dlong(Q.street_date))}`)}
+    ${fcard('q3E', L('Adj. EBITDA guidance', '调整后 EBITDA 指引'), `${money(-23, 0)} – ${money(-20, 0)}`, `${L('implies Q4 ≈ +$8m', '意味着第四季度约 +800 万美元')} · ${lsrc(n)}`)}
+    ${fcard('q3P', L('EPS consensus', 'EPS 一致预期'), '−$0.58', `${L('company gives no EPS guidance', '公司不提供 EPS 指引')} · ${srcA(Q.street_src, 'MarketBeat')}`)}</div>
+   ${tableBlock({title: L('Scorecard: fill in actuals on 5 Nov', '计分表：11 月 5 日填入实际值'), columns: [L('Metric', '指标'), L('Q3 guidance', '三季度指引'), L('Guidance mid', '指引中值'), L('Street consensus', '华尔街一致预期'), L('Q2 2026 actual', '2026 年二季度实际'), L('Q3 actual', '三季度实际'), L('vs guidance mid', '对比指引中值'), L('vs Street', '对比一致预期')],
+     rows: Q.rows.map(r => [L(r.k, r.z), rng(r), r.u === 'eps' || mid(r) == null ? NA() : r.u === 'sh' ? mid(r) + 'm' : money(mid(r)), r.st == null ? NA() : r.u === 'eps' ? '−$' + Math.abs(r.st).toFixed(2) : money(r.st, 2), r.q2 == null ? NA() : money(r.q2), L('due 5 Nov', '11 月 5 日公布'), '—', '—']),
+     notes: [L('Guidance', '指引') + ': ' + lsrc(n) + ' · ' + L('Street consensus (revenue, EPS) as shown on', '华尔街一致预期（营收、EPS）取自') + ' ' + srcA(Q.street_src, 'MarketBeat') + ` (${dlong(Q.street_date)})`,
+       L('Street consensus for IFP, GEP and Adj. EBITDA is not published on free sources, so it is shown as n/a. Full-year 2026 guidance: IFP $1,632–1,639m, GEP $1,374–1,378m, revenue $1,214–1,220m, Adj. EBITDA ($51)–($47)m.', 'IFP、GEP 和调整后 EBITDA 的华尔街一致预期在免费来源中未公布，因此显示为暂无。2026 年全年指引：IFP 16.32–16.39 亿美元，GEP 13.74–13.78 亿美元，营收 12.14–12.20 亿美元，调整后 EBITDA 亏损 0.47–0.51 亿美元。')]}, {id: 'tQ3', raw: true})}</div>
+  <div class="sblk" id="blk-reins"><h3>${L('Reinsurance', '再保险')} ${sub(esc(MX.quarters[0]) + ' – ' + esc(MX.quarters[n]))}</h3>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${fcard('reC', L('Premium ceded to reinsurers', '分给再保险人的保费'), R.ceded_pct[n] + '%', `${L('of gross written', '占毛承保保费')} · ${MQ[n]} · ${L('year ago', '去年同期')} ${R.ceded_pct[n - 4]}% · ${lsrc(n)}`)}
+    ${fcard('reK', L('Ceding commission income', '分保佣金收入'), money(R.ccom[n]), `${MQ[n]} · ${L('year ago', '去年同期')} ${money(R.ccom[n - 4])} · ${lsrc(n)}`)}
+    ${fcard('reG', L('Gross loss ratio', '毛赔付率'), R.glr[n] + '%', `${MQ[n]} · ${lsrc(n)}`, 'GLR')}
+    ${fcard('reN', L('Net loss ratio', '净赔付率'), R.nlr[n] + '%', `${MQ[n]} · ${L('after reinsurance', '再保险后')} · ${lsrc(n)}`, 'NLR')}</div>
+   ${ccard({id: 'reCh', title: L('Ceded share of gross written premium (bars) vs gross and net loss ratio', '分出保费占毛承保保费比例（柱）与毛、净赔付率')})}
+   ${tableBlock({title: L('Reinsurance by quarter, newest first ($m)', '各季度再保险，最新在前（百万美元）'), columns: [L('Quarter', '季度'), L('Gross written', '毛承保保费'), L('Ceded written', '分出承保保费'), L('Ceded %', '分出比例'), L('Gross earned', '毛已赚保费'), L('Ceded earned', '分出已赚保费'), L('Ceding commission', '分保佣金'), L('Gross LR', '毛赔付率'), L('Net LR', '净赔付率'), L('Source', '来源')],
+     rows: MQ.map((q, i) => [q, R.gwp[i], R.cwp[i], R.ceded_pct[i] + '%', R.gep[i], R.cep[i], R.ccom[i], R.glr[i] + '%', R.nlr[i] + '%', lsrc(i)]).reverse(),
+     notes: [L('Ceded % = ceded written ÷ gross written premium (calculated). The drop after Q2 2025 reflects the 1 Jul 2025 program, which cut the quota share to ~20%.', '分出比例 = 分出承保保费 ÷ 毛承保保费（计算值）。2025 年第二季度后的下降来自 2025 年 7 月 1 日生效的新计划，成数分保降至约 20%。')]}, {id: 'tRe', raw: true})}
+   <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('1 July 2026 renewal terms', '2026 年 7 月 1 日续约条款')}</h3><ul class="lst">${li(R.terms)}</ul>
+    <div class="mut" style="font-size:12px">${L('The ceding-commission rate on the renewed program is not disclosed.', '续约计划的分保佣金比例未披露。')}</div></div></div>
+  <div class="sblk" id="blk-cat"><h3>${L('Catastrophe exposure', '巨灾敞口')}</h3>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${CT.states.map((x, k) => fcard('ctS' + k, `${esc(mz(x.st))} ${L('share of GWP', '占 GWP')}`, x.p + '%', `${MQ[n]} · ${money(x.q)} · ${L('year ago', '去年同期')} ${x.p0}% · ${tqsrc()}`)).join('')}
+    ${fcard('ctC', L('Catastrophe losses (excl. PPD)', '巨灾损失（不含 PPD）'), CT.pp[n] + ' pp', `${L('of GEP', '占 GEP')} · ≈ ${money(CT.usd[n])} · ${MQ[n]} · ${lsrc(n)}`, 'CAT')}</div>
+   ${ccard({id: 'ctCh', title: L('Catastrophe losses (pp of GEP, bars) next to the gross loss ratio and GLR ex-CAT', '巨灾损失（占 GEP 百分点，柱）与毛赔付率及不含巨灾的毛赔付率')})}
+   ${tableBlock({title: L('Catastrophe losses by quarter, newest first', '各季度巨灾损失，最新在前'), columns: [L('Quarter', '季度'), L('CAT excl. PPD (pp of GEP)', 'CAT（不含 PPD，占 GEP 百分点）'), L('≈ CAT losses ($m, calculated)', '≈ 巨灾损失（百万美元，计算值）'), L('Gross loss ratio', '毛赔付率'), L('GLR ex-CAT', '不含巨灾毛赔付率'), L('Source', '来源')],
+     rows: MQ.map((q, i) => [q, CT.pp[i], CT.usd[i], CT.glr[i] + '%', CT.exc[i] + '%', lsrc(i)]).reverse(),
+     notes: [L('Dollar amounts are pp × gross earned premium, so they are approximate (the letters round pp to whole numbers). Lemonade does not disclose catastrophe losses in dollars by quarter.', '美元金额 = 百分点 × 毛已赚保费，因此为近似值（股东信将百分点四舍五入为整数）。Lemonade 未按季度披露巨灾损失的美元金额。'),
+       L('State shares are gross written premium (all products) from the 10-Q segment note; premium by state and product (e.g. Florida homeowners only) and in-force premium by state are not disclosed.', '各州占比为 10-Q 分部附注中的毛承保保费（全部产品）；各州按产品（如仅佛罗里达房主险）的保费和各州有效保费均未披露。') + ' ' + tqsrc()]}, {id: 'tCt', raw: true})}
+   ${tableBlock({title: L('Gross written premium in the three largest catastrophe states ($m)', '三大巨灾州的毛承保保费（百万美元）'), columns: [L('State', '州'), 'Q2 2026', '%', 'Q2 2025', '%', L('H1 2026', '2026 上半年'), '%'], rows: CT.states.map(x => [mz(x.st), x.q, x.p + '%', x.q0, x.p0 + '%', x.h, x.hp + '%']), notes: [tqsrc()]}, {id: 'tCs', raw: true})}
+   <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('Catastrophe events (newest first)', '巨灾事件（最新在前）')}</h3><ul class="lst">${li(CT.notes)}</ul></div></div>
+  <div class="sblk" id="blk-gc"><h3>${L('Synthetic Agents (General Catalyst financing)', 'Synthetic Agents（General Catalyst 融资）')}</h3>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${fcard('gcB', L('Balance outstanding', '未偿余额'), money(G.bal[n]), `${MQ[n]} · ${tqsrc()}`)}
+    ${fcard('gcD', L('Drawn in H1 2026', '2026 上半年提款'), money(G.draw_h1_26), `${L('repaid', '偿还')} ${money(G.repay_h1_26)} · ${tqsrc()}`)}
+    ${fcard('gcI', L('Interest expense Q2 2026', '2026 年二季度利息费用'), money(G.int_q['Q2 2026']), `${L('year ago', '去年同期')} ${money(G.int_q['Q2 2025'])} · ${L('16% rate of return to GC', '向 GC 支付 16% 回报率')} · ${tqsrc()}`)}
+    ${fcard('gcC', L('Total GC commitments', 'GC 承诺总额'), money(commitTot, 0), `${L('3 tranches, 2023–2026', '三期，2023–2026 年')} · ${tqsrc()}`)}</div>
+   ${tableBlock({title: L('Balance outstanding by quarter, newest first ($m)', '各季度未偿余额，最新在前（百万美元）'), columns: [L('Quarter', '季度'), L('Balance outstanding', '未偿余额'), L('Source', '来源')], rows: MQ.map((q, i) => [q, G.bal[i], lsrc(i)]).reverse(),
+     notes: [L(`H1 2026: drawn ${money(G.draw_h1_26)}, repaid ${money(G.repay_h1_26)}, interest expense ${money(G.int_h1_26)} (cash interest paid ${money(G.cash_int_h1_26)}); H1 2025: drawn ${money(G.draw_h1_25)}, repaid ${money(G.repay_h1_25)}, interest ${money(G.int_h1_25)}. Cumulative amount drawn since 2023 is not disclosed.`, `2026 上半年：提款 ${money(G.draw_h1_26)}，偿还 ${money(G.repay_h1_26)}，利息费用 ${money(G.int_h1_26)}（现金支付利息 ${money(G.cash_int_h1_26)}）；2025 上半年：提款 ${money(G.draw_h1_25)}，偿还 ${money(G.repay_h1_25)}，利息 ${money(G.int_h1_25)}。2023 年以来累计提款额未披露。`) + ' ' + tqsrc()]}, {id: 'tGc', raw: true})}
+   <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('Agreements (newest first)', '协议（最新在前）')}</h3><ul class="lst">
+    <li><b>${esc(dlong(G.hann.date))}</b> · Hannover Re · ${esc(mz(G.hann.txt))} · ${tqsrc()} · ${lsrc(n)}</li>
+    ${[...G.commit].reverse().map(c => `<li><b>${esc(dlong(c.date))}</b> · General Catalyst · ${money(c.amt, 0)} · ${esc(mz(c.txt))} · ${tqsrc()}</li>`).join('')}</ul>
+    <div class="mut" style="font-size:12px">${L('Under each GC tranche, GC advances 50–80% of growth spend and is repaid on an agreed schedule including a 16% rate of return.', '每期 GC 融资预付增长支出的 50–80%，按约定时间表偿还，含 16% 的回报率。')}</div></div></div>
+  <div class="sblk" id="blk-car"><h3>${L('Car tracker', '车险追踪')}</h3>
+   <div class="grid g4" style="margin-bottom:12px">
+    ${fcard('carI', L('Car in-force premium', '车险有效保费'), money(CR.ifp[n], 0), `${MQ[n]} · ${L('year ago', '去年同期')} ${money(CR.ifp[n - 4], 0)} · ${lsrc(n)}`, 'IFP')}
+    ${fcard('carS', L('Car share of IFP', '车险占 IFP'), share[n] + '%', `${MQ[n]} · ${L('year ago', '去年同期')} ${share[n - 4]}% · ${L('calculated', '计算值')} · ${lsrc(n)}`)}
+    ${fcard('carG', L('Car gross loss ratio', '车险毛赔付率'), CR.glr[n] + '%', `${MQ[n]} · ${L('year ago', '去年同期')} ${CR.glr[n - 4]}% · ${lsrc(n)}`, 'GLR')}
+    ${fcard('carN', L('States where Car is live', '车险已上线州数'), String(CR.states_n.n), `${L('as of', '截至')} ${dlong(CR.states_n.date)} · ${srcA(CR.states_n.src, 'Lemonade on X')}`)}</div>
+   ${tableBlock({title: L('Car by quarter, newest first', '各季度车险，最新在前'), columns: [L('Quarter', '季度'), L('Car IFP ($m)', '车险 IFP（百万美元）'), L('Total IFP ($m)', 'IFP 合计（百万美元）'), L('Car share', '车险占比'), L('Car GLR', '车险毛赔付率'), L('Premium per Car customer ($)', '车险单客户保费（美元）'), L('Source', '来源')],
+     rows: MQ.map((q, i) => [q, CR.ifp[i], CR.tot[i], share[i] + '%', CR.glr[i] + '%', CR.ppc[i], lsrc(i)]).reverse(),
+     notes: [L('Q4 2025 Car loss ratio benefited from year-end reserve movements (per the letter).', '据股东信，2025 年第四季度车险赔付率受益于年末准备金变动。'), L('A complete list of the 13 Car states is not published in one filing; launches below are those with a company source.', '13 个车险州的完整名单未在单一申报文件中公布；下表仅列出有公司来源的上线。')]}, {id: 'tCar', raw: true})}
+   <div class="grid g2" style="margin:16px 0"><div class="card"><h3 style="margin-top:0">${L('Autonomous Car / FSD discount (newest first)', '自动驾驶车险 / FSD 折扣（最新在前）')}</h3><ul class="lst">${li(CR.auto)}</ul>
+     <div class="mut" style="font-size:12px">${L('State rate filings for the FSD discount are not linked here: Lemonade announces these launches by press release and on X, and the state filings are not posted with them.', '此处未链接 FSD 折扣的各州费率备案：Lemonade 通过新闻稿和 X 宣布上线，未同时公布各州备案文件。')}</div></div>
+    <div class="card"><h3 style="margin-top:0">${L('Car state launches since Q2 2025 (newest first)', '2025 年第二季度以来车险州上线（最新在前）')}</h3><ul class="lst">${li(CR.launch)}<li><b>${esc(dlong(CR.tx_note.date))}</b> · <span class="pill acc">TX</span> ${esc(mz(CR.tx_note.txt))} · ${srcA(CR.tx_note.src)}</li></ul></div></div></div>`;
+  [['q3I', [1083, 1158, 1237, 1333, 1434, 1538.5], [...MQ, L('Q3 guide', '三季度指引')]], ['q3R', [...D.fin.is.series['Total revenue'].slice(-5), 324.5], [...MQ, L('Q3 guide', '三季度指引')]], ['q3E', [...D.fin.kpi.series['Adjusted EBITDA ($m)'].slice(-5), -21.5], [...MQ, L('Q3 guide', '三季度指引')]]].forEach(([id, d, l]) => xs(id, d, l));
+  xs('reC', R.ceded_pct, MQ); xs('reK', R.ccom, MQ); xs('reG', R.glr, MQ); xs('reN', R.nlr, MQ);
+  CT.states.forEach((x, k) => xs('ctS' + k, [x.p0, x.p], ['Q2 2025', 'Q2 2026'])); xs('ctC', CT.pp, MQ);
+  xs('gcB', G.bal, MQ); xs('gcI', [G.int_q['Q2 2025'], G.int_q['Q2 2026']], ['Q2 2025', 'Q2 2026']);
+  xs('carI', CR.ifp, MQ); xs('carS', share, MQ); xs('carG', CR.glr, MQ);
+  wireCard({id: 'reCh', unit: '%', build: () => ({labels: MQ, datasets: [{type: 'bar', label: L('Ceded % of GWP', '分出比例'), data: R.ceded_pct, backgroundColor: C.acc, keep: true}, {type: 'line', label: L('Gross loss ratio', '毛赔付率'), data: R.glr, borderColor: C.g, keep: true}, {type: 'line', label: L('Net loss ratio', '净赔付率'), data: R.nlr, borderColor: C.b, keep: true}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
+  wireCard({id: 'ctCh', unit: '%', build: () => ({labels: MQ, datasets: [{type: 'bar', label: L('CAT excl. PPD (pp)', 'CAT（不含 PPD，百分点）'), data: CT.pp, backgroundColor: C.acc, keep: true}, {type: 'line', label: L('Gross loss ratio', '毛赔付率'), data: CT.glr, borderColor: C.g, keep: true}, {type: 'line', label: L('GLR ex-CAT', '不含巨灾毛赔付率'), data: CT.exc, borderColor: C.b, keep: true}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
+}
 const TABS = [['overview', 'Overview', overview], ['fin', 'Financial Statements', finTab], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
   ['rollout', 'Product Rollout', rollout, 'rollout'],
-  ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources & Live feed', sources]]
+  ['risk', 'Risk & Q3 preview', riskTab], ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources & Live feed', sources]]
   .filter(t => !t[3] || OPT[t[3]]);
 /* short labels keep the nav simple; section headings keep the full names */
-const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', fin: 'Financials', metrics: 'Metrics & Street', insiders: 'Insiders', sources: 'Sources & Live feed'};
-const NAVZ = {overview: '概览', kpis: 'KPI', history: '历史', highlights: '要点', rollout: '产品拓展', fin: '财务报表', metrics: '指标与华尔街', insiders: '内部人', sources: '来源与实时数据'};
-const TABZ = {overview: '概览', fin: '财务报表', kpis: '保险 KPI', history: 'IFP 与营收历史', highlights: '季度要点', rollout: '产品拓展', metrics: '指标与华尔街', insiders: '内部人', sources: '来源与实时数据'};
+const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', risk: 'Risk & Q3', fin: 'Financials', metrics: 'Metrics & Street', insiders: 'Insiders', sources: 'Sources & Live feed'};
+const NAVZ = {overview: '概览', kpis: 'KPI', history: '历史', highlights: '要点', rollout: '产品拓展', risk: '风险与Q3', fin: '财务报表', metrics: '指标与华尔街', insiders: '内部人', sources: '来源与实时数据'};
+const TABZ = {overview: '概览', fin: '财务报表', kpis: '保险 KPI', history: 'IFP 与营收历史', highlights: '季度要点', rollout: '产品拓展', risk: '风险与三季度前瞻', metrics: '指标与华尔街', insiders: '内部人', sources: '来源与实时数据'};
 /* Sources & Live feed is a nav tab (Hugo asked for it, like Micron's) */
 const NONAV = new Set([]);
 /* old links: retired tabs land somewhere sensible */
