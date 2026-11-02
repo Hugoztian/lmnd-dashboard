@@ -393,8 +393,8 @@ function overview() {
   const paras = arr => arr.filter(p => !p.startsWith('©')).map(p => { p = tr(p); const m = LANG === 'zh' ? p.match(/^[•\s]*([^:]{2,40})[:]\s?(.+)$/s) : p.match(/^[•\s]*([^:]{3,70}):\s(.+)$/); return m ? `<p><b>${esc(m[1])}${L(':', '')}</b> ${esc(m[2])}</p>` : `<p>${esc(p.replace(/^•\s*/, ''))}</p>`; }).join('');
   const ph = P.hist || [];
   $('#s-overview').innerHTML = `<h2>${L('Overview', '')}</h2>
-  <p class="lead">${N.verdict ? `<b>${L('Verdict.', '')}</b> ${esc(tr(N.verdict))}` : ''}</p>
   ${weekCard()}
+  <p class="lead">${N.verdict ? `<b>${L('Verdict.', '')}</b> ${esc(tr(N.verdict))}` : ''}</p>
   <div class="blk"><div class="qpick"><b>${L('KPI cards for quarter', 'KPI ')}</b> <button class="ib" id="qprev" aria-label="${L('Previous quarter', '')}">‹</button><select id="qsel" aria-label="${L('Pick quarter', '')}">${Q.map((q, i) => `<option value="${i}" ${i === LI ? 'selected' : ''}>${esc(q)} (${L('ended', '')} ${esc(dlong(D.meta.period_end[i]))})</option>`).join('')}</select><button class="ib" id="qnext" aria-label="${L('Next quarter', '')}">›</button><span class="mut" style="font-size:12px">${L(`The cards at the top always show the latest quarter (${esc(H.quarter)}).`, `${esc(H.quarter)}`)}</span></div>
     <div class="grid g4" id="kpicards"></div></div>
   <div class="grid g2" style="margin-bottom:16px">
@@ -923,7 +923,7 @@ function finTab() {
   $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
   finShow((location.hash.split('/')[1] || 'bs'));
 }
-/* ---------------- Added sections (extra.js): loss-ratio breakdown, growth by product & state, cash runway, insider selling over time, cohorts, bear checks, what changed this week ---------------- */
+/* ---------------- Added sections (extra.js): loss-ratio breakdown, growth by product & state, cash runway, insider selling over time, cohorts, bear checks, what’s new this week ---------------- */
 const X = window.LMND_EXTRA || null;
 const XQ = X ? X.quarters.map(qshort) : [];
 const srcA = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t || L('source', ''))}</a>`;
@@ -933,14 +933,14 @@ function fcard(id, label, v, s, key) { return `<div class="card kpi"><div class=
 const xs = (id, data, labels) => { const c = spark(id, data, C.acc, labels || XQ); if (c) { c.data.datasets[0].pointRadius = data.map((_, j) => j === data.length - 1 ? 3.5 : 0); c.data.datasets[0].pointBackgroundColor = C.acc; c.update('none'); } };
 const pp = v => v == null ? NA() : (v < 0 ? '(' + Math.abs(v) + '%)' : v + '%');
 
-/* 7) What changed this week — Overview */
+/* 7) What’s new this week — Overview */
 function weekCard() {
   if (!X) return ''; const W = X.week;
   const kind = {company: [L('Company', ''), 'acc'], market: [L('Market', ''), 'other'], social: [L('X commentary', 'X '), 'other']};
   const fl = W.filings.length ? W.filings.map(f => `<li><b>${esc(dlong(f.date))}</b> · SEC ${esc(f.form)} · ${srcA(f.url, 'EDGAR')}</li>`).join('')
     : `<li>${L(`No new SEC filings between ${dlong(W.from)} and ${dlong(W.to)}.`, `${dlong(W.from)}${dlong(W.to)} SEC `)}${W.last_filing ? ' ' + L(`Latest: Form ${esc(W.last_filing.form)} on ${dlong(W.last_filing.date)}`, `${dlong(W.last_filing.date)}  Form ${esc(W.last_filing.form)}`) + ' · ' + srcA(W.last_filing.url, 'EDGAR') : ''}</li>`;
   const it = [...W.finds].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li><b>${esc(dlong(x.date))}</b> <span class="pill ${kind[x.kind][1]}">${kind[x.kind][0]}</span> ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('');
-  return `<div class="card wkcard" style="margin-bottom:16px;border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What changed this week', '')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', ' SEC EDGAR  X ')}</span></h3>
+  return `<div class="card wkcard" style="margin-bottom:16px;border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What’s new this week', '')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', ' SEC EDGAR  X ')}</span></h3>
    <div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first)', '')}</div><ul class="lst">${it}</ul></div>`;
 }
 
