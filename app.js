@@ -943,9 +943,19 @@ function weekCard() {
   const kind = {company: [L('Company', ''), 'acc'], market: [L('Market', ''), 'other'], social: [L('X commentary', 'X '), 'other']};
   const fl = W.filings.length ? W.filings.map(f => `<li><b>${esc(dlong(f.date))}</b> · SEC ${esc(f.form)} · ${srcA(f.url, 'EDGAR')}</li>`).join('')
     : `<li>${L(`No new SEC filings between ${dlong(W.from)} and ${dlong(W.to)}.`, `${dlong(W.from)}${dlong(W.to)} SEC `)}${W.last_filing ? ' ' + L(`Latest: Form ${esc(W.last_filing.form)} on ${dlong(W.last_filing.date)}`, `${dlong(W.last_filing.date)}  Form ${esc(W.last_filing.form)}`) + ' · ' + srcA(W.last_filing.url, 'EDGAR') : ''}</li>`;
-  const it = [...W.finds].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li><b>${esc(dlong(x.date))}</b> <span class="pill ${kind[x.kind][1]}">${kind[x.kind][0]}</span> ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('');
+  const nowMs = Date.now(), rec = d => (nowMs - Date.parse(d + 'T23:59:59+08:00')) <= 48 * 3600e3;
+  const it = [...W.finds].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li class="${rec(x.date) ? 'wn-recent' : 'wn-old'}"><b>${esc(dlong(x.date))}</b>${rec(x.date) ? ' <span class="pill acc">' + L('New', '') + '</span>' : ''} <span class="pill ${kind[x.kind][1]}">${kind[x.kind][0]}</span> ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('');
+  const CU = [
+    {d: '2026-11-04', when: '4 Nov 2026, 8:00 AM ET (9:00 PM SGT)', what: 'Shareholder Q&A submissions close for the Q3 call'},
+    {d: '2026-11-05', when: '5 Nov 2026, pre-market', what: "Q3'26 results; call 8:00 AM ET (9:00 PM SGT). Guide: IFP $1,537–$1,540m; revenue $323–$326m; adj. EBITDA loss ($23)–($20)m"},
+    {d: '2026-11-17', when: '17 Nov 2026', what: 'Investor Day, New York City'},
+    {d: '2027-01-01', when: '1 Jan 2027', what: 'CFO transition; Hannover Re financing begins for new cohorts'},
+    {d: '2027-02-28', when: 'Early 2027', what: "Q4'26 / FY26 results (first targeted adj. EBITDA-positive quarter)"}];
+  const today = new Date(nowMs + 8 * 3600e3).toISOString().slice(0, 10);
+  const cu = CU.filter(c => c.d >= today).sort((a, b) => a.d.localeCompare(b.d)).map(c => `<li><b>${esc(c.when)}</b> · ${esc(c.what)}</li>`).join('') || `<li>${L('No dated catalysts ahead.', '')}</li>`;
   return `<div class="card wkcard" style="margin-bottom:16px;border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What’s new this week', '')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', ' SEC EDGAR  X ')}</span></h3>
-   <div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first)', '')}</div><ul class="lst">${it}</ul></div>`;
+   <div class="grid g2"><div><div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first; blue = last 48h)', '')}</div><ul class="lst">${it}</ul></div>
+   <div><div class="flab">${L('Coming up', '')}</div><ul class="lst">${cu}</ul></div></div></div>`;
 }
 
 /* 1) Loss-ratio breakdown — Insurance KPIs (replaces the old components chart) */
