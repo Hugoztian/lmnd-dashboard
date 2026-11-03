@@ -944,12 +944,12 @@ function weekCard() {
   const fl = W.filings.length ? W.filings.map(f => `<li><b>${esc(dlong(f.date))}</b> · SEC ${esc(f.form)} · ${srcA(f.url, 'EDGAR')}</li>`).join('')
     : `<li>${L(`No new SEC filings between ${dlong(W.from)} and ${dlong(W.to)}.`, `${dlong(W.from)}${dlong(W.to)} SEC `)}${W.last_filing ? ' ' + L(`Latest: Form ${esc(W.last_filing.form)} on ${dlong(W.last_filing.date)}`, `${dlong(W.last_filing.date)}  Form ${esc(W.last_filing.form)}`) + ' · ' + srcA(W.last_filing.url, 'EDGAR') : ''}</li>`;
   const nowMs = Date.now(), rec = d => (nowMs - Date.parse(d + 'T23:59:59+08:00')) <= 48 * 3600e3;
-  const it = [...W.finds].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li class="${rec(x.date) ? 'wn-recent' : 'wn-old'}"><b>${esc(dlong(x.date))}</b>${rec(x.date) ? ' <span class="pill acc">' + L('New', '') + '</span>' : ''} <span class="pill ${kind[x.kind][1]}">${kind[x.kind][0]}</span> ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('');
+  const it = [...W.finds].sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li class="${rec(x.date) ? 'wn-recent' : 'wn-old'}"><b>${esc(dlong(x.date))}</b>${rec(x.date) ? ' <span class="wn-nb">48h</span>' : ''} <span class="pill ${kind[x.kind][1]}">${kind[x.kind][0]}</span> ${esc(tr(x.txt))} · ${srcA(x.src)}</li>`).join('');
   const CU = (D.comingUp || X.comingUp || []).map(c => ({d: c.date, when: c.when, what: c.what}));
   const today = new Date(nowMs + 8 * 3600e3).toISOString().slice(0, 10);
   const cu = CU.filter(c => c.d >= today).sort((a, b) => a.d.localeCompare(b.d)).map(c => `<li><b>${esc(c.when)}</b> · ${esc(c.what)}</li>`).join('') || `<li>${L('No dated catalysts ahead.', '')}</li>`;
   return `<div class="card wkcard" style="margin-bottom:16px;border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What’s new this week', '')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', ' SEC EDGAR  X ')}</span></h3>
-   <div class="grid g2"><div><div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first; blue = last 48h)', '')}</div><ul class="lst">${it}</ul></div>
+   <div class="grid g2"><div><div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first; pink = last 48h)', '')}</div><ul class="lst">${it}</ul></div>
    <div><div class="flab">${L('Coming up', '')}</div><ul class="lst">${cu}</ul></div></div></div>`;
 }
 
