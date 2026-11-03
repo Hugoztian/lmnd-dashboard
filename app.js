@@ -334,7 +334,7 @@ const trimQ = cfg => { const n = cfg.labels.length; let i0 = n; cfg.datasets.for
 /* ---------------- hero ---------------- */
 function hero() {
   const H = D.hero, P = D.price, asof = L(`${H.quarter} · as of ${H.period_end_long}`, `${H.quarter} ·  ${dlong(H.period_end)}`);
-  $('#updated').innerHTML = `© 2026 Hugo Tian. All rights reserved.`;
+  $('#updated').innerHTML = `<strong>Last updated: ${esc(D.lastUpdated || (D.meta && D.meta.built_sgt) || 'n/a')}</strong> · © HT`;
   const ifp = ser('in-?force premium', 'kpi'), cu = ser('^customers', 'kpi'), pp = ser('premium per customer', 'kpi');
   const card = (n, label, key, v, ch, s, id) => `<div class="hcard"><div class="l">${label} ${info(key)}</div><div class="v">${v}</div><div class="ch ${pcls(ch)}">${L(pct(ch) + ' YoY', ' ' + pct(ch))}</div><div class="s">${s}</div><div class="asof">${esc(asof)}</div></div>`;
   $('#hero4').innerHTML = [
