@@ -1004,7 +1004,7 @@ function runwayBlock() {
    <div class="grid g4" style="margin-bottom:12px">
     ${fcard('rwC', L('Cash & investments', ''), money(K.cash[n], 0), `${esc(XQ[n])} · ${srcA(K.src[n], L('letter', ''))}`)}
     ${fcard('rwO', L('Operating cash flow', ''), money(K.opcf[n]), `${esc(XQ[n])} · ${L('TTM free cash flow', 'TTM ')} ${money(K.ttm_fcf)}`)}
-    ${fcard('rwG', L('General Catalyst Synthetic Agents debt', 'General Catalyst Synthetic Agents '), money(K.gc[n]), `${esc(XQ[n])} · ${L('interest', '')} $${fmt(K.gc_int['Q2 2026'], 1)}m ${L('in the quarter', '')} · ${srcA(K.gc_terms_src, '10-Q')}`, 'Synthetic Agents')}
+    ${fcard('rwG', L('General Catalyst Synthetic Agents debt', 'General Catalyst Synthetic Agents '), money(K.gc[n]), `${esc(XQ[n])} · ${L('interest', '')} $${fmt(K.gc_int['Q3 2026'], 1)}m ${L('in the quarter', '')} · ${srcA(K.gc_terms_src, '10-Q')}`, 'Synthetic Agents')}
     ${fcard('rwR', L('Runway at current burn', ''), rw, L(`cash & investments ÷ ${XQ[n]} free cash outflow of ${money(-K.fcf[n])}`, ` ÷ ${XQ[n]}  ${money(-K.fcf[n])}`))}</div>
    ${ccard({id: 'rwCh', title: L('Operating cash flow, free cash flow and Synthetic Agents debt ($m)', ' Synthetic Agents '), tip: 'Synthetic Agents', unit: '$m'})}
    ${fnote([L(`Runway is a simple ratio: ${XQ[n]} cash & investments of ${money(K.cash[n], 0)} divided by that quarter’s free cash outflow (operating cash flow minus capex). Free cash flow over the last four quarters was ${money(K.ttm_fcf)}, i.e. not burning on a TTM basis. Much of the cash sits in regulated insurance subsidiaries and cannot all be moved to the parent.`, `${XQ[n]}  ${money(K.cash[n], 0)}  ${money(K.ttm_fcf)} TTM `),
@@ -1067,7 +1067,7 @@ const MX = window.LMND_MORE || null;
 const MQ = MX ? MX.quarters.map(qshort) : [];
 const lsrc = i => srcA(MX.letters[i], L(`${qshort(MX.quarters[i])} letter, ${dlong(MX.ldate[i])}`, `${qshort(MX.quarters[i])} ${dlong(MX.ldate[i])}`));
 const qsrcM = () => MX.quarters.map((q, i) => srcA(MX.letters[i], qshort(q))).join(' · ');
-const tqsrc = () => srcA(MX.tenq, L(`Q2 2026 10-Q, ${dlong(MX.tenq_d)}`, `2026  10-Q${dlong(MX.tenq_d)}`));
+const tqsrc = () => srcA(MX.tenq, L(`Q3 2026 10-Q, ${dlong(MX.tenq_d)}`, `2026  10-Q${dlong(MX.tenq_d)}`));
 const ZTX = {
  'Whole-account quota share with Hannover Re and MAPFRE renewed 1 Jul 2026 – 30 Jun 2027: effective cession cut from ~20% to ~18% of premium; new $40m limit per loss occurrence and $100m aggregate, catastrophe losses included. Other terms similar.': ' Hannover Re  MAPFRE  2026  7  1  2027  6  30  20%  18% 4,000  1 ',
  'Property per-risk excess-of-loss contract (claims above $750k, up to $2.25m) expired 30 Jun 2026 and was not renewed.': '75  225  2026  6  30 ',
@@ -1136,16 +1136,16 @@ function riskTab() {
      rows: MQ.map((q, i) => [q, CT.pp[i], CT.usd[i], CT.glr[i] + '%', CT.exc[i] + '%', lsrc(i)]).reverse(),
      notes: [L('Dollar amounts are pp × gross earned premium, so they are approximate (the letters round pp to whole numbers). Lemonade does not disclose catastrophe losses in dollars by quarter.', ' =  × Lemonade '),
        L('State shares are gross written premium (all products) from the 10-Q segment note; premium by state and product (e.g. Florida homeowners only) and in-force premium by state are not disclosed.', ' 10-Q ') + ' ' + tqsrc()]}, {id: 'tCt', raw: true})}
-   ${tableBlock({title: L('Gross written premium in the three largest catastrophe states ($m)', ''), columns: [L('State', ''), 'Q2 2026', '%', 'Q2 2025', '%', L('H1 2026', '2026 '), '%'], rows: CT.states.map(x => [mz(x.st), x.q, x.p + '%', x.q0, x.p0 + '%', x.h, x.hp + '%']), notes: [tqsrc()]}, {id: 'tCs', raw: true})}
+   ${tableBlock({title: L('Gross written premium in the three largest catastrophe states ($m)', ''), columns: [L('State', ''), 'Q3 2026', '%', 'Q3 2025', '%', L('9M 2026', '2026 '), '%'], rows: CT.states.map(x => [mz(x.st), x.q, x.p + '%', x.q0, x.p0 + '%', x.h, x.hp + '%']), notes: [tqsrc()]}, {id: 'tCs', raw: true})}
    <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('Catastrophe events (newest first)', '')}</h3><ul class="lst">${li(CT.notes)}</ul></div></div>
   <div class="sblk" id="blk-gc"><h3>${L('Synthetic Agents (General Catalyst financing)', 'Synthetic AgentsGeneral Catalyst ')}</h3>
    <div class="grid g4" style="margin-bottom:12px">
     ${fcard('gcB', L('Balance outstanding', ''), money(G.bal[n]), `${MQ[n]} · ${tqsrc()}`)}
-    ${fcard('gcD', L('Drawn in H1 2026', '2026 '), money(G.draw_h1_26), `${L('repaid', '')} ${money(G.repay_h1_26)} · ${tqsrc()}`)}
-    ${fcard('gcI', L('Interest expense Q2 2026', '2026 '), money(G.int_q['Q2 2026']), `${L('year ago', '')} ${money(G.int_q['Q2 2025'])} · ${L('16% rate of return to GC', ' GC  16% ')} · ${tqsrc()}`)}
+    ${fcard('gcD', L('Drawn in 9M 2026', '2026 '), money(G.draw_9m_26), `${L('repaid', '')} ${money(G.repay_9m_26)} · ${tqsrc()}`)}
+    ${fcard('gcI', L('Interest expense Q3 2026', '2026 '), money(G.int_q['Q3 2026']), `${L('year ago', '')} ${money(G.int_q['Q3 2025'])} · ${L('16% rate of return to GC', ' GC  16% ')} · ${tqsrc()}`)}
     ${fcard('gcC', L('Total GC commitments', 'GC '), money(commitTot, 0), `${L('3 tranches, 2023–2026', '2023–2026 ')} · ${tqsrc()}`)}</div>
    ${tableBlock({title: L('Balance outstanding by quarter, newest first ($m)', ''), columns: [L('Quarter', ''), L('Balance outstanding', ''), L('Source', '')], rows: MQ.map((q, i) => [q, G.bal[i], lsrc(i)]).reverse(),
-     notes: [L(`H1 2026: drawn ${money(G.draw_h1_26)}, repaid ${money(G.repay_h1_26)}, interest expense ${money(G.int_h1_26)} (cash interest paid ${money(G.cash_int_h1_26)}); H1 2025: drawn ${money(G.draw_h1_25)}, repaid ${money(G.repay_h1_25)}, interest ${money(G.int_h1_25)}. Cumulative amount drawn since 2023 is not disclosed.`, `2026  ${money(G.draw_h1_26)} ${money(G.repay_h1_26)} ${money(G.int_h1_26)} ${money(G.cash_int_h1_26)}2025  ${money(G.draw_h1_25)} ${money(G.repay_h1_25)} ${money(G.int_h1_25)}2023 `) + ' ' + tqsrc()]}, {id: 'tGc', raw: true})}
+     notes: [L(`9M 2026: drawn ${money(G.draw_9m_26)}, repaid ${money(G.repay_9m_26)}, interest expense ${money(G.int_9m_26)} (cash interest paid ${money(G.cash_int_9m_26)}); 9M 2025: drawn ${money(G.draw_9m_25)}, repaid ${money(G.repay_9m_25)}, interest ${money(G.int_9m_25)}. Cumulative amount drawn since 2023 is not disclosed.`, `2026  ${money(G.draw_9m_26)} ${money(G.repay_9m_26)} ${money(G.int_9m_26)} ${money(G.cash_int_9m_26)}2025  ${money(G.draw_9m_25)} ${money(G.repay_9m_25)} ${money(G.int_9m_25)}2023 `) + ' ' + tqsrc()]}, {id: 'tGc', raw: true})}
    <div class="card" style="margin:16px 0"><h3 style="margin-top:0">${L('Agreements (newest first)', '')}</h3><ul class="lst">
     <li><b>${esc(dlong(G.hann.date))}</b> · Hannover Re · ${esc(mz(G.hann.txt))} · ${tqsrc()} · ${lsrc(n)}</li>
     ${[...G.commit].reverse().map(c => `<li><b>${esc(dlong(c.date))}</b> · General Catalyst · ${money(c.amt, 0)} · ${esc(mz(c.txt))} · ${tqsrc()}</li>`).join('')}</ul>
@@ -1164,8 +1164,8 @@ function riskTab() {
     <div class="card"><h3 style="margin-top:0">${L('Car state launches since Q2 2025 (newest first)', '2025 ')}</h3><ul class="lst">${li(CR.launch)}<li><b>${esc(dlong(CR.tx_note.date))}</b> · <span class="pill acc">TX</span> ${esc(mz(CR.tx_note.txt))} · ${srcA(CR.tx_note.src)}</li></ul></div></div></div>`;
   [['q3I', [1083, 1158, 1237, 1333, 1434, 1538.5], [...MQ, L('Q3 guide', '')]], ['q3R', [...D.fin.is.series['Total revenue'].slice(-5), 324.5], [...MQ, L('Q3 guide', '')]], ['q3E', [...D.fin.kpi.series['Adjusted EBITDA ($m)'].slice(-5), -21.5], [...MQ, L('Q3 guide', '')]]].forEach(([id, d, l]) => xs(id, d, l));
   xs('reC', R.ceded_pct, MQ); xs('reK', R.ccom, MQ); xs('reG', R.glr, MQ); xs('reN', R.nlr, MQ);
-  CT.states.forEach((x, k) => xs('ctS' + k, [x.p0, x.p], ['Q2 2025', 'Q2 2026'])); xs('ctC', CT.pp, MQ);
-  xs('gcB', G.bal, MQ); xs('gcI', [G.int_q['Q2 2025'], G.int_q['Q2 2026']], ['Q2 2025', 'Q2 2026']);
+  CT.states.forEach((x, k) => xs('ctS' + k, [x.p0, x.p], ['Q3 2025', 'Q3 2026'])); xs('ctC', CT.pp, MQ);
+  xs('gcB', G.bal, MQ); xs('gcI', [G.int_q['Q3 2025'], G.int_q['Q3 2026']], ['Q3 2025', 'Q3 2026']);
   xs('carI', CR.ifp, MQ); xs('carS', share, MQ); xs('carG', CR.glr, MQ);
   wireCard({id: 'reCh', unit: '%', build: () => ({labels: MQ, datasets: [{type: 'bar', label: L('Ceded % of GWP', ''), data: R.ceded_pct, backgroundColor: C.acc, keep: true}, {type: 'line', label: L('Gross loss ratio', ''), data: R.glr, borderColor: C.g, keep: true}, {type: 'line', label: L('Net loss ratio', ''), data: R.nlr, borderColor: C.b, keep: true}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
   wireCard({id: 'ctCh', unit: '%', build: () => ({labels: MQ, datasets: [{type: 'bar', label: L('CAT excl. PPD (pp)', 'CAT PPD'), data: CT.pp, backgroundColor: C.acc, keep: true}, {type: 'line', label: L('Gross loss ratio', ''), data: CT.glr, borderColor: C.g, keep: true}, {type: 'line', label: L('GLR ex-CAT', ''), data: CT.exc, borderColor: C.b, keep: true}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
