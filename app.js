@@ -399,7 +399,7 @@ function overview() {
     <div class="grid g4" id="kpicards"></div></div>
   <div class="grid g2" style="margin-bottom:16px">
     <div class="card"><h3>${L('Key numbers (with dates)', '')}</h3>${tableBlock({columns: [L('Metric', ''), L('Value', ''), L('As of', '')], rows: keyRows}, {id: 'tKey', csvname: 'Key numbers', terms: true, wrap: true, cls: 'keyt'})}</div>
-    <div class="card"><h3>${L('Catalysts & dates', '')}</h3>${cats}<ul class="notes"><li>${L('Q3 2026 company guide', 'Q3 2026 ')}: ${esc(LANG === 'zh' ? tr((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^[^]*\s*/, '') : ((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^Q3 2026 guide \(Q2'26 letter\):\s*/, ''))}</li></ul></div></div>
+    <div class="card"><h3>${L('Catalysts & dates', '')}</h3>${cats}<ul class="notes"><li>${L('Q4 & FY 2026 company guide', 'Q4 & FY 2026 ')}: ${esc(LANG === 'zh' ? tr((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^[^]*\s*/, '') : ((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^Q4 2026 guide \(Q3'26 letter, 5 Nov 2026\):\s*/, ''))}</li></ul></div></div>
   <div class="grid g3" style="margin-bottom:16px">${exKeys.map(k => `<div class="card"><h3>${esc(tr(k))}</h3><div style="font-size:13.5px;line-height:1.55">${esc(tr(ex[k]))}</div></div>`).join('')}</div>
   <div style="margin-bottom:16px">
     <div class="card"><h3 style="margin-top:0">${L('LMND live chart', 'LMND ')} <span class="mut" style="font-size:12px;font-weight:400">${TV_SYM} · TradingView · ${L('delayed', '')}</span></h3><div class="tvchart" id="tvchart"></div></div></div>
@@ -923,7 +923,7 @@ function finShow(id) {
 }
 function finTab() {
   for (const k in finDone) delete finDone[k];
-  $('#s-fin').innerHTML = `<h2>${L('Financial Statements', '')} <span class="mut">${L("From Lemonade's 10-Q and 10-K filings", ' Lemonade  10-Q  10-K ')}</span></h2><div class="subtabs" id="finsub" role="tablist">${FINSUB.map(([k, l, , z]) => `<button role="tab" data-v="${k}">${esc(L(l, z))}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
+  $('#s-fin').innerHTML = `<h2>${L('Financial Statements', '')} <span class="mut">${L("From Lemonade's 10-Q and 10-K filings", ' Lemonade  10-Q  10-K ')}</span> <a class="lnk" href="Lemonade_LMND_DD.xlsx?v=${esc(D.meta.built_sgt.replace(/\D/g, ''))}" download>${L('Excel (colour-coded) ↓', 'Excel ↓')}</a></h2><div class="subtabs" id="finsub" role="tablist">${FINSUB.map(([k, l, , z]) => `<button role="tab" data-v="${k}">${esc(L(l, z))}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
   $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
   finShow((location.hash.split('/')[1] || 'bs'));
 }
@@ -1105,16 +1105,16 @@ function riskTab() {
   const rng = r => r.lo == null ? NA() : r.u === 'sh' ? `${r.lo}m` : r.lo === r.hi ? money(r.lo, 0) : `${money(r.lo, 0)} – ${money(r.hi, 0)}`;
   const mid = r => r.lo == null ? null : (r.lo + r.hi) / 2;
   s.innerHTML = `<h2 class="bh">${L('Risk & Q3 preview', '')} ${sub(L('reinsurance, catastrophe exposure, growth financing, Car and the 5 Nov results', ' 11  5 '))}</h2>
-  <div class="sblk" id="blk-q3"><h3>${L('Q3 2026 earnings preview', '2026 ')} ${sub(L(`results ${dlong(Q.date)} before US market open · call 8:00 am ET (9:00 pm SGT)`, `${dlong(Q.date)}  ·  8:00 9:00`) + ' · ' + srcA(Q.call_src))}</h3>
+  <div class="sblk" id="blk-q3"><h3>${L('Q3 2026 earnings: guidance vs actual', '2026 ')} ${sub(L(`results ${dlong(Q.date)} before US market open · call 8:00 am ET (9:00 pm SGT)`, `${dlong(Q.date)}  ·  8:00 9:00`) + ' · ' + srcA(Q.call_src))}</h3>
    <div class="grid g4" style="margin-bottom:12px">
     ${fcard('q3I', L('IFP guidance', 'IFP '), `${money(1537, 0)}–${fmt(1540)}m`, `${L('vs', '')} ${MQ[n]} ${money(1434, 0)} · ${lsrc(n)}`, 'IFP')}
     ${fcard('q3R', L('Revenue guidance', ''), `${money(323, 0)}–${fmt(326)}m`, `${L('Street', '')} ${money(322.74, 2)} · ${srcA(Q.street_src, 'MarketBeat ' + dlong(Q.street_date))}`)}
-    ${fcard('q3E', L('Adj. EBITDA guidance', ' EBITDA '), `${money(-23, 0)} – ${money(-20, 0)}`, `${L('implies Q4 ≈ +$8m', ' +800 ')} · ${lsrc(n)}`)}
+    ${fcard('q3E', L('Adj. EBITDA guidance', ' EBITDA '), `${money(-23, 0)} – ${money(-20, 0)}`, `${L('actual ($20.4)m · FY guide implies Q4 ≈ +$5–9m', '')} · ${lsrc(n)}`)}
     ${fcard('q3P', L('EPS consensus', 'EPS '), '−$0.58', `${L('company gives no EPS guidance', ' EPS ')} · ${srcA(Q.street_src, 'MarketBeat')}`)}</div>
-   ${tableBlock({title: L('Scorecard: fill in actuals on 5 Nov', '11  5 '), columns: [L('Metric', ''), L('Q3 guidance', ''), L('Guidance mid', ''), L('Street consensus', ''), L('Q2 2026 actual', '2026 '), L('Q3 actual', ''), L('vs guidance mid', ''), L('vs Street', '')],
-     rows: Q.rows.map(r => [L(r.k, r.z), rng(r), r.u === 'eps' || mid(r) == null ? NA() : r.u === 'sh' ? mid(r) + 'm' : money(mid(r)), r.st == null ? NA() : r.u === 'eps' ? '−$' + Math.abs(r.st).toFixed(2) : money(r.st, 2), r.q2 == null ? NA() : money(r.q2), L('due 5 Nov', '11  5 '), '—', '—']),
+   ${tableBlock({title: L('Scorecard: Q3 2026 actual vs guidance (reported 5 Nov 2026)', ''), columns: [L('Metric', ''), L('Q3 guidance', ''), L('Guidance mid', ''), L('Street consensus', ''), L('Q2 2026 actual', '2026 '), L('Q3 actual', ''), L('vs guidance mid', ''), L('vs Street', '')],
+     rows: Q.rows.map(r => [L(r.k, r.z), rng(r), r.u === 'eps' || mid(r) == null ? NA() : r.u === 'sh' ? mid(r) + 'm' : money(mid(r)), r.st == null ? NA() : r.u === 'eps' ? '−$' + Math.abs(r.st).toFixed(2) : money(r.st, 2), r.q2 == null ? NA() : r.u === 'eps' ? '−$' + Math.abs(r.q2).toFixed(2) : r.u === 'sh' ? r.q2 + 'm' : money(r.q2), r.act == null ? NA() : r.u === 'eps' ? '−$' + Math.abs(r.act).toFixed(2) : r.u === 'sh' ? r.act + 'm' : money(r.act), r.act == null || mid(r) == null || r.u === 'eps' ? NA() : (r.act - mid(r) >= 0 ? '+' : '−') + (r.u === 'sh' ? Math.abs(r.act - mid(r)).toFixed(2) + 'm' : '$' + Math.abs(r.act - mid(r)).toFixed(1) + 'm'), r.act == null || r.st == null ? NA() : r.u === 'eps' ? (r.act - r.st >= 0 ? '+' : '−') + '$' + Math.abs(r.act - r.st).toFixed(2) : (r.act - r.st >= 0 ? '+' : '−') + '$' + Math.abs(r.act - r.st).toFixed(1) + 'm']),
      notes: [L('Guidance', '') + ': ' + lsrc(n) + ' · ' + L('Street consensus (revenue, EPS) as shown on', 'EPS') + ' ' + srcA(Q.street_src, 'MarketBeat') + ` (${dlong(Q.street_date)})`,
-       L('Street consensus for IFP, GEP and Adj. EBITDA is not published on free sources, so it is shown as n/a. Full-year 2026 guidance: IFP $1,632–1,639m, GEP $1,374–1,378m, revenue $1,214–1,220m, Adj. EBITDA ($51)–($47)m.', 'IFPGEP  EBITDA 2026 IFP 16.32–16.39 GEP 13.74–13.78  12.14–12.20  EBITDA  0.47–0.51 ')]}, {id: 'tQ3', raw: true})}</div>
+       L('Street consensus for IFP, GEP and Adj. EBITDA is not published on free sources, so it is shown as n/a. Q3 actuals from the Q3 2026 shareholder letter and 10-Q (5 Nov 2026). Updated full-year 2026 guidance: IFP $1,632–1,639m, GEP $1,382–1,386m, revenue $1,231–1,235m, Adj. EBITDA ($51)–($47)m (implies Q4 ≈ +$5–9m); Q4 guide: IFP $1,632–1,639m, GEP $379–383m, revenue $342–346m.', 'IFPGEP  EBITDA 2026 IFP 16.32–16.39 GEP 13.74–13.78  12.14–12.20  EBITDA  0.47–0.51 ')]}, {id: 'tQ3', raw: true})}</div>
   <div class="sblk" id="blk-reins"><h3>${L('Reinsurance', '')} ${sub(esc(MX.quarters[0]) + ' – ' + esc(MX.quarters[n]))}</h3>
    <div class="grid g4" style="margin-bottom:12px">
     ${fcard('reC', L('Premium ceded to reinsurers', ''), R.ceded_pct[n] + '%', `${L('of gross written', '')} · ${MQ[n]} · ${L('year ago', '')} ${R.ceded_pct[n - 4]}% · ${lsrc(n)}`)}
