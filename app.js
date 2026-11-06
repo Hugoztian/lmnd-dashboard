@@ -749,8 +749,8 @@ function sources() {
    ${details(L('Data build', ''), L(`<ul class="lst"><li>Built ${esc(D.meta.built_sgt)} from the workbook sheets: ${D.meta.sheets.map(esc).join(', ')}.</li><li>Price history: ${esc(D.price.hist_src)}. Live price: Robinhood real-time via the quote relay, TradingView delayed quote as backup. SEC filings feed: data.sec.gov, fetched ${esc((window.FEED||{}).fetched_sgt||'n/a')}.</li><li>Form 4 detail: ${D.form4.length} transaction lines parsed from SEC Form 4 XML.</li><li>Unavailable figures are shown as n/a, never estimated.</li></ul>`,
      `<ul class="lst"><li> ${esc(D.meta.built_sgt.replace(' SGT', ''))}${D.meta.sheets.map(n => esc(SHEETZ[n] || n)).join('')}</li><li> Robinhood TradingView SEC data.sec.gov ${esc(String((window.FEED||{}).fetched_sgt||'').replace(' SGT', ''))}</li><li>Form 4  SEC Form 4 XML  ${D.form4.length} </li><li>“”</li></ul>`))}
    ${details(L('Metric definitions', ''), `<ul class="lst">${Object.entries(D.glossary).map(([k, v]) => `<li><b>${esc(tr(k))}</b> — ${esc(tr(v))}</li>`).join('')}</ul>`)}</div></div>`;
-  $$('#srcsub button').forEach(b => b.onclick = () => { location.replace('#sources/' + b.dataset.v); srcShow(b.dataset.v); });
-  srcShow(location.hash.split('/')[1] || 'feed');
+  $$('#srcsub button').forEach(b => b.onclick = () => { location.replace('#ownership/sources/' + b.dataset.v); srcShow(b.dataset.v); });
+  srcShow(location.hash.split('/')[2] || 'feed');
 }
 
 /* ---------------- tabs fed by sheets that may arrive later (hidden until the sheet exists) ---------------- */
@@ -1170,30 +1170,41 @@ function riskTab() {
   wireCard({id: 'reCh', unit: '%', build: () => ({labels: MQ, datasets: [{type: 'bar', label: L('Ceded % of GWP', ''), data: R.ceded_pct, backgroundColor: C.acc, keep: true}, {type: 'line', label: L('Gross loss ratio', ''), data: R.glr, borderColor: C.g, keep: true}, {type: 'line', label: L('Net loss ratio', ''), data: R.nlr, borderColor: C.b, keep: true}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
   wireCard({id: 'ctCh', unit: '%', build: () => ({labels: MQ, datasets: [{type: 'bar', label: L('CAT excl. PPD (pp)', 'CAT PPD'), data: CT.pp, backgroundColor: C.acc, keep: true}, {type: 'line', label: L('Gross loss ratio', ''), data: CT.glr, borderColor: C.g, keep: true}, {type: 'line', label: L('GLR ex-CAT', ''), data: CT.exc, borderColor: C.b, keep: true}], scales: {y: {ticks: {callback: v => v + '%'}}}})});
 }
-const TABS = [['overview', 'Overview', overview], ['fin', 'Financial Statements', finTab], ['kpis', 'Insurance KPIs', kpis], ['history', 'IFP & Revenue History', history, 'history'], ['highlights', 'Quarterly Highlights', highlights, 'highlights'],
-  ['rollout', 'Product Rollout', rollout, 'rollout'],
-  ['risk', 'Risk & Q3 results', riskTab], ['metrics', 'Metrics & Street', metricsTab], ['insiders', 'Insiders', insiders], ['sources', 'Sources & Live feed', sources]]
-  .filter(t => !t[3] || OPT[t[3]]);
+/* Hugo: top menu max six tabs — related pages merged under subtabs, nothing removed */
+const GRP = {ops: [['kpis', 'KPIs', 'Insurance KPIs', kpis], ['history', 'History', 'IFP & Revenue History', history, 'history'], ['highlights', 'Highlights', 'Quarterly Highlights', highlights, 'highlights'], ['rollout', 'Rollout', 'Product Rollout', rollout, 'rollout']].filter(t => !t[4] || OPT[t[4]]),
+  ownership: [['insiders', 'Insiders', 'Insiders & ownership', insiders], ['sources', 'Sources & Live feed', 'Sources & Live feed', sources]]};
+function grpShow(g, k) {
+  const L2 = GRP[g]; if (!L2.some(x => x[0] === k)) k = L2[0][0];
+  $$('#sub-' + g + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === k));
+  L2.forEach(([id, , , fn]) => { const el = $('#s-' + id); el.hidden = id !== k;
+    if (id === k && !done['g:' + id]) { try { fn(); } catch (e) { console.error('render ' + id, e); el.insertAdjacentHTML('beforeend', `<div class="tvfail">This section could not render: ${esc(e.message)}</div>`); } done['g:' + id] = 1; wireTables(el); wireXall(el); } });
+  if (k === 'sources' && done['g:sources']) srcShow(location.hash.split('/')[2] || 'feed');
+}
+function grpTab(g, title) { return () => {
+  $('#s-' + g).innerHTML = `<h2>${esc(title)}</h2><div class="subtabs" id="sub-${g}" role="tablist">${GRP[g].map(([k, l, full]) => `<button role="tab" data-v="${k}" title="${esc(full)}">${esc(l)}</button>`).join('')}</div>${GRP[g].map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
+  $$('#sub-' + g + ' button').forEach(b => b.onclick = () => { location.replace('#' + g + '/' + b.dataset.v); grpShow(g, b.dataset.v); });
+}; }
+const TABS = [['overview', 'Overview', overview], ['fin', 'Financial Statements', finTab], ['ops', 'Operations: KPIs, History, Highlights & Rollout', grpTab('ops', 'Operations')],
+  ['risk', 'Risk & Q3 results', riskTab], ['metrics', 'Metrics & Street', metricsTab], ['ownership', 'Insiders, Sources & Live feed', grpTab('ownership', 'Insiders & Sources')]];
 /* short labels keep the nav simple; section headings keep the full names */
-const NAVL = {overview: 'Overview', kpis: 'KPIs', history: 'History', highlights: 'Highlights', rollout: 'Rollout', risk: 'Risk & Q3', fin: 'Financials', metrics: 'Metrics & Street', insiders: 'Insiders', sources: 'Sources & Live feed'};
-const NAVZ = {overview: '', kpis: 'KPI', history: '', highlights: '', rollout: '', risk: 'Q3', fin: '', metrics: '', insiders: '', sources: ''};
-const TABZ = {overview: '', fin: '', kpis: ' KPI', history: 'IFP ', highlights: '', rollout: '', risk: '', metrics: '', insiders: '', sources: ''};
-/* Sources & Live feed is a nav tab (Hugo asked for it, like Micron's) */
+const NAVL = {overview: 'Overview', fin: 'Financials', ops: 'Operations', risk: 'Risk & Q3', metrics: 'Metrics & Street', ownership: 'Insiders & Sources'};
+const NAVZ = {}; const TABZ = {};
 const NONAV = new Set([]);
 /* old links: retired tabs land somewhere sensible */
-const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview', bear: '#metrics/bear', runway: '#fin/cf'};
+const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview', bear: '#metrics/bear', runway: '#fin/cf',
+  kpis: '#ops/kpis', history: '#ops/history', highlights: '#ops/highlights', rollout: '#ops/rollout', insiders: '#ownership/insiders', sources: '#ownership/sources'};
 const done = {};
 function route() {
   let id = (location.hash || '#overview').slice(1).split('/')[0];
   if (['is', 'bs', 'cf'].includes(id)) { location.replace('#fin/' + id); return; }
-  if (MOVED[id]) { location.replace(MOVED[id]); return; }
+  if (MOVED[id]) { const rest = location.hash.split('/').slice(1).join('/'); location.replace(MOVED[id] + (id === 'sources' && rest ? '/' + rest : '')); return; }
   if (!TABS.some(t => t[0] === id)) id = 'overview';
   if (id === 'fin' && done.fin) finShow(location.hash.split('/')[1] || 'bs');
-  if (id === 'sources' && done.sources) srcShow(location.hash.split('/')[1] || 'feed');
   $$('#nav a').forEach(a => { const on = a.dataset.t === id; a.classList.toggle('on', on); if (on) a.scrollIntoView({block: 'nearest', inline: 'center'}); });
   $$('main section').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
   const t = TABS.find(t => t[0] === id);
   if (!done[id]) { try { t[2](); } catch (e) { console.error('render ' + id, e); $('#s-' + id).insertAdjacentHTML('beforeend', `<div class="tvfail">${L('This tab could not render', '')}: ${esc(e.message)}</div>`); } done[id] = 1; wireTables($('#s-' + id)); wireXall($('#s-' + id)); }
+  if (GRP[id]) grpShow(id, location.hash.split('/')[1]);
   if (id === 'metrics') { const sub = location.hash.split('/')[1]; if (sub && mblk().some(b => b[0] === sub)) setTimeout(() => metricsJump(sub, false), 60); }
   route.seen = 1;
   document.title = L(`${t[1]} · Lemonade (LMND) Dashboard · © 2026 Hugo Tian`, `${TABZ[t[0]] || t[1]} · Lemonade (LMND)  · © 2026 Hugo Tian`);
