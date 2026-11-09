@@ -1,4 +1,4 @@
-/* Lemonade (LMND) Dashboard · © 2026 Hugo Tian. All rights reserved. All data comes from data.js (built by build_data.py from the research workbook). */
+/* Lemonade (LMND) Dashboard · © 2026 HT. All rights reserved. All data comes from data.js (built by build_data.py from the research workbook). */
 'use strict';
 const D = window.LMND_DATA, Q = D.meta.quarters, NQ = Q.length, LI = NQ - 1;
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -401,8 +401,6 @@ function overview() {
     <div class="card"><h3>${L('Key numbers (with dates)', '')}</h3>${tableBlock({columns: [L('Metric', ''), L('Value', ''), L('As of', '')], rows: keyRows}, {id: 'tKey', csvname: 'Key numbers', terms: true, wrap: true, cls: 'keyt'})}</div>
     <div class="card"><h3>${L('Catalysts & dates', '')}</h3>${cats}<ul class="notes"><li>${L('Q4 & FY 2026 company guide', 'Q4 & FY 2026 ')}: ${esc(LANG === 'zh' ? tr((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^[^]*\s*/, '') : ((sheet('guidance') || {tables: [{notes: []}]}).tables[0].notes[0] || '').replace(/^Q4 2026 guide \(Q3'26 letter, 5 Nov 2026\):\s*/, ''))}</li></ul></div></div>
   <div class="grid g3" style="margin-bottom:16px">${exKeys.map(k => `<div class="card"><h3>${esc(tr(k))}</h3><div style="font-size:13.5px;line-height:1.55">${esc(tr(ex[k]))}</div></div>`).join('')}</div>
-  <div style="margin-bottom:16px">
-    <div class="card"><h3 style="margin-top:0">${L('LMND live chart', 'LMND ')} <span class="mut" style="font-size:12px;font-weight:400">${TV_SYM} · TradingView · ${L('delayed', '')}</span></h3><div class="tvchart" id="tvchart"></div></div></div>
   <div class="xscope">${xallBtns()}
   ${details(L('Business overview', ''), paras(sec('business').paras), L('model, Giveback, reinsurance, growth financing', 'Giveback'))}
   ${details(L('Latest quarter, guidance & path to profit', ''), paras([...sec('latest quarter').paras, ...sec('latest quarter').subs.flatMap(x => x.paras)]), H.quarter)}
@@ -412,9 +410,6 @@ function overview() {
   const sel = $('#qsel'); const set = i => { i = Math.max(0, Math.min(LI, i)); sel.value = i; kpiCards(i); };
   sel.onchange = () => set(+sel.value); $('#qprev').onclick = () => set(+sel.value - 1); $('#qnext').onclick = () => set(+sel.value + 1);
   kpiCards(LI);
-  tvEmbed($('#tvchart'), 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: tvTheme(), style: '1', locale: tvLocale(),
-    backgroundColor: isDark() ? 'rgba(28,28,30,1)' : 'rgba(255,255,255,1)', gridColor: isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)', allow_symbol_change: false, hide_side_toolbar: true, calendar: false, support_host: 'https://www.tradingview.com'},
-    why => { $('#tvchart').innerHTML = `<div class="tvfail">${L(`Live chart unavailable (${esc(why)}).`, `${esc(why)}`)}</div><div class="mut" style="font-size:12px">${L(`Build-time snapshot: close $${fmt(D.price.close, 2)} on ${esc(dlong(D.price.close_date))} · not live`, `${esc(dlong(D.price.close_date))}  $${fmt(D.price.close, 2)} · `)}</div>`; $('#tvchart').style.height = 'auto'; });
 }
 /* ---------------- Insurance KPIs ---------------- */
 const QL = Q.map(qshort);
@@ -916,16 +911,28 @@ function picksTab() {
 const FINSUB = [['bs', 'Balance Sheet', () => bsTab(), ''], ['is', 'Income Statement', () => isTab(), ''], ['cf', 'Cash Flow Statement', () => cfTab(), '']];
 const finDone = {};
 function finShow(id) {
+  const wantChart = id === 'chart';
   if (!FINSUB.some(f => f[0] === id)) id = 'bs';
   $$('#finsub button').forEach(b => b.classList.toggle('on', b.dataset.v === id));
   FINSUB.forEach(([k]) => { const e = $('#s-' + k); if (e) e.hidden = k !== id; });
   if (!finDone[id]) { finDone[id] = 1; try { FINSUB.find(f => f[0] === id)[2](); } catch (e) { console.error('render ' + id, e); $('#s-' + id).insertAdjacentHTML('beforeend', `<div class="tvfail">${L('This statement could not render', '')}: ${esc(e.message)}</div>`); } }
+  if (wantChart) setTimeout(() => { const t = $('#live-price-chart'); if (t) t.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 80);
+}
+function liveChartBlock() {
+  return `<div class="card" id="live-price-chart" style="margin-top:24px"><h3 style="margin-top:0">${L('Live price chart', '')} <span class="mut" style="font-size:12px;font-weight:400">${TV_SYM} · TradingView · ${L('delayed', '')}</span></h3><div class="tvchart" id="tvchart"></div></div>`;
+}
+function wireLiveChart() {
+  const el = $('#tvchart'); if (!el) return;
+  tvEmbed(el, 'advanced-chart', {autosize: true, symbol: TV_SYM, interval: 'D', range: '12M', timezone: 'Asia/Singapore', theme: tvTheme(), style: '1', locale: tvLocale(),
+    backgroundColor: isDark() ? 'rgba(28,28,30,1)' : 'rgba(255,255,255,1)', gridColor: isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)', allow_symbol_change: false, hide_side_toolbar: true, calendar: false, support_host: 'https://www.tradingview.com'},
+    why => { el.innerHTML = `<div class="tvfail">${L(`Live chart unavailable (${esc(why)}).`, `${esc(why)}`)}</div><div class="mut" style="font-size:12px">${L(`Build-time snapshot: close $${fmt(D.price.close, 2)} on ${esc(dlong(D.price.close_date))} · not live`, `${esc(dlong(D.price.close_date))}  $${fmt(D.price.close, 2)} · `)}</div>`; el.style.height = 'auto'; });
 }
 function finTab() {
   for (const k in finDone) delete finDone[k];
-  $('#s-fin').innerHTML = `<h2>${L('Financial Statements', '')} <span class="mut">${L("From Lemonade's 10-Q and 10-K filings", ' Lemonade  10-Q  10-K ')}</span> <a class="lnk" href="Lemonade_LMND_DD.xlsx?v=${esc(D.meta.built_sgt.replace(/\D/g, ''))}" download>${L('Excel (colour-coded) ↓', 'Excel ↓')}</a></h2><div class="subtabs" id="finsub" role="tablist">${FINSUB.map(([k, l, , z]) => `<button role="tab" data-v="${k}">${esc(L(l, z))}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}`;
+  $('#s-fin').innerHTML = `<h2>${L('Financial Statements', '')} <span class="mut">${L("From Lemonade's 10-Q and 10-K filings", ' Lemonade  10-Q  10-K ')}</span> <a class="lnk" href="Lemonade_LMND_DD.xlsx?v=${esc(D.meta.built_sgt.replace(/\D/g, ''))}" download>${L('Excel (colour-coded) ↓', 'Excel ↓')}</a></h2><div class="subtabs" id="finsub" role="tablist">${FINSUB.map(([k, l, , z]) => `<button role="tab" data-v="${k}">${esc(L(l, z))}</button>`).join('')}</div>${FINSUB.map(([k]) => `<div id="s-${k}" hidden></div>`).join('')}${liveChartBlock()}`;
   $$('#finsub button').forEach(b => b.onclick = () => { location.replace('#fin/' + b.dataset.v); finShow(b.dataset.v); });
   finShow((location.hash.split('/')[1] || 'bs'));
+  wireLiveChart();
 }
 /* ---------------- Added sections (extra.js): loss-ratio breakdown, growth by product & state, cash runway, insider selling over time, cohorts, bear checks, what’s new this week ---------------- */
 const X = window.LMND_EXTRA || null;
@@ -948,9 +955,9 @@ function weekCard() {
   const CU = (D.comingUp || X.comingUp || []).map(c => ({d: c.date, when: c.when, what: c.what}));
   const today = new Date(nowMs + 8 * 3600e3).toISOString().slice(0, 10);
   const cu = CU.filter(c => c.d >= today).sort((a, b) => a.d.localeCompare(b.d)).map(c => `<li><b>${esc(c.when)}</b> · ${esc(c.what)}</li>`).join('') || `<li>${L('No dated catalysts ahead.', '')}</li>`;
-  return `<div class="card wkcard" style="margin-bottom:16px;border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What’s new this week', '')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', ' SEC EDGAR  X ')}</span></h3>
-   <div class="grid g2"><div><div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first; pink = last 48h)', '')}</div><ul class="lst">${it}</ul></div>
-   <div><div class="flab">${L('Coming up', '')}</div><ul class="lst">${cu}</ul></div></div></div>`;
+  return `<div class="wn-cu"><div class="card wkcard" style="border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('What’s new this week', '')} <span class="mut" style="font-size:12px;font-weight:400">${esc(dlong(W.from))} – ${esc(dlong(W.to))} · ${L('from SEC EDGAR and the daily X & web scan', ' SEC EDGAR  X ')}</span></h3>
+   <div class="flab">${L('SEC filings', 'SEC ')}</div><ul class="lst">${fl}</ul><div class="flab">${L('Scan findings (newest first; pink = last 48h)', '')}</div><ul class="lst">${it}</ul></div>
+   <div class="card wkcard" style="border-left:3px solid var(--acc)"><h3 style="margin-top:0">${L('Coming up', '')}</h3><ul class="lst">${cu}</ul></div></div>`;
 }
 
 /* 1) Loss-ratio breakdown — Insurance KPIs (replaces the old components chart) */
@@ -1192,7 +1199,8 @@ const NAVZ = {}; const TABZ = {};
 const NONAV = new Set([]);
 /* old links: retired tabs land somewhere sensible */
 const MOVED = {opmetrics: '#metrics/opmetrics', picks: '#metrics/picks', guidance: '#metrics/guidance', street: '#metrics/street', valuation: '#metrics/valuation', risks: '#overview', bear: '#metrics/bear', runway: '#fin/cf',
-  kpis: '#ops/kpis', history: '#ops/history', highlights: '#ops/highlights', rollout: '#ops/rollout', insiders: '#ownership/insiders', sources: '#ownership/sources'};
+  kpis: '#ops/kpis', history: '#ops/history', highlights: '#ops/highlights', rollout: '#ops/rollout', insiders: '#ownership/insiders', sources: '#ownership/sources',
+  chart: '#fin/chart', tvchart: '#fin/chart', 'live-price-chart': '#fin/chart'};
 const done = {};
 function route() {
   let id = (location.hash || '#overview').slice(1).split('/')[0];
@@ -1207,7 +1215,7 @@ function route() {
   if (GRP[id]) grpShow(id, location.hash.split('/')[1]);
   if (id === 'metrics') { const sub = location.hash.split('/')[1]; if (sub && mblk().some(b => b[0] === sub)) setTimeout(() => metricsJump(sub, false), 60); }
   route.seen = 1;
-  document.title = L(`${t[1]} · Lemonade (LMND) Dashboard · © 2026 Hugo Tian`, `${TABZ[t[0]] || t[1]} · Lemonade (LMND)  · © 2026 Hugo Tian`);
+  document.title = L(`${t[1]} · Lemonade (LMND) Dashboard · © 2026 HT`, `${TABZ[t[0]] || t[1]} · Lemonade (LMND)  · © 2026 HT`);
 }
 function buildNav() {
   $('#nav').innerHTML = TABS.filter(([id]) => !NONAV.has(id)).map(([id, l]) => `<a href="#${id}" data-t="${id}" title="${esc(L(l, TABZ[id] || l))}">${esc(L(NAVL[id] || l, NAVZ[id] || l))}</a>`).join('');
@@ -1234,5 +1242,5 @@ function langChrome() {
   const h1 = $('#h1t'); if (h1) h1.textContent = L('Dashboard', '');
 }
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `© 2026 Hugo Tian. All rights reserved.`;
+$('#foot').innerHTML = `© 2026 HT. All rights reserved.`;
 langChrome(); buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);

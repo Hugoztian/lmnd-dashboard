@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lemonade (LMND) Dashboard · © 2026 Hugo Tian</title>
-<meta name="author" content="Hugo Tian">
+<title>Lemonade (LMND) Dashboard · © 2026 HT</title>
+<meta name="author" content="HT">
 <meta name="description" content="Lemonade, Inc. (NYSE: LMND) investor dashboard: in-force premium, customers, premium per customer, live price, financial statements, Wall Street, guidance, valuation and insiders.">
-<meta name="copyright" content="© 2026 Hugo Tian. All rights reserved.">
+<meta name="copyright" content="© 2026 HT. All rights reserved.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="favicon.png?v=2">
 <link rel="apple-touch-icon" href="icon-180.png?v=2">
@@ -16,9 +16,9 @@
 <script src="vendor/hammer.min.js"></script>
 <script src="vendor/chartjs-plugin-zoom.min.js"></script>
 <script src="vendor/chartjs-plugin-annotation.min.js"></script>
-<script src="data.js?v=1794181695"></script>
-<script src="feed.js?v=1794181695"></script>
-<script src="board.js?v=1794181695"></script><script src="extra.js?v=1794181695"></script><script src="more.js?v=1794181695"></script>
+<script src="data.js?v=1794196235"></script>
+<script src="feed.js?v=1794196235"></script>
+<script src="board.js?v=1794196235"></script><script src="extra.js?v=1794196235"></script><script src="more.js?v=1794196235"></script>
 <style>
 /* Minimal Apple-style system: neutral surfaces, whitespace over lines, Lemonade pink as the only accent */
 :root{--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -56,7 +56,7 @@ nav a.on{color:var(--acc);opacity:1;font-weight:600;background:var(--accsoft)}
 .hero{max-width:1200px;margin:0 auto;padding:56px 32px 8px}
 .hero h1{font-size:56px;line-height:1.05;font-weight:700;letter-spacing:-.04em;margin:0 0 12px}
 .hero h1 .tk{color:var(--acc)}
-.hero .sub{color:var(--mut2);font-size:13px}
+.hero .sub{color:var(--mut2);font-size:13px;margin:0 0 10px}
 .hero .sub b{color:var(--mut);font-weight:600}
 .h4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:36px}
 .hcard{background:var(--panel);border-radius:22px;padding:20px 22px 18px;box-shadow:var(--shadow);min-width:0;position:relative;display:flex;flex-direction:column}
@@ -106,7 +106,7 @@ h2.bh .mut{font-size:14px;margin-top:4px}
 h3{font-size:19px;font-weight:600;letter-spacing:-.022em;margin:44px 0 14px}
 h3 .mut{font-weight:400!important;font-size:13px!important;color:var(--mut2)}
 h4{font-weight:600;letter-spacing:-.015em}
-.wn-recent,.wn-recent b{color:var(--acc);font-weight:600}.wn-old,.wn-old b{color:var(--mut,#888)}.wn-nb{background:var(--acc);color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700}.grid{display:grid;gap:16px}.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}.g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(min(470px,100%),1fr))}
+.wn-cu{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-bottom:16px}@media (max-width:800px){.wn-cu{grid-template-columns:1fr}}.wn-recent,.wn-recent b{color:var(--acc);font-weight:600}.wn-old,.wn-old b{color:var(--mut,#888)}.wn-nb{background:var(--acc);color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700}.grid{display:grid;gap:16px}.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}.g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(min(470px,100%),1fr))}
 .card{background:var(--panel);border-radius:20px;padding:24px 26px;box-shadow:var(--shadow);min-width:0}
 .card>h3:first-child{margin-top:0}
 .card .card{background:var(--panel2);box-shadow:none}
@@ -253,14 +253,14 @@ footer .flink{color:var(--mut)}footer .flink:hover{color:var(--acc)}
 </head>
 <body>
 <header><div class="bar"><a class="brand" href="#overview" aria-label="Lemonade dashboard home"><img class="lseal" src="lmnd-seal.png?v=1" alt="Lemonade" width="28" height="28"><span class="bn" id="brandsub">Dashboard</span></a><nav id="nav"></nav><div class="hbtns"><button class="themebtn" id="themebtn" title="Theme: follows your system until you pick one"><span id="themeic">◐</span><span class="tl2" id="themelbl">Auto</span></button></div></div></header>
-<div class="hero"><h1>Lemonade <span class="tk">$LMND</span> <span id="h1t">Dashboard</span></h1>
-  <div class="sub" id="updated"></div>
+<div class="hero"><div class="sub" id="updated"></div>
+  <h1>Lemonade <span class="tk">$LMND</span> <span id="h1t">Dashboard</span></h1>
   <div class="h4" id="hero4"></div>
   <div class="h2row" id="hero2"></div>
 </div>
 <main id="main"></main>
 <footer id="foot"></footer>
 <div id="tip" role="tooltip"></div>
-<script src="app.js?v=1794181695"></script>
+<script src="app.js?v=1794196235"></script>
 </body>
 </html>
