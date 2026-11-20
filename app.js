@@ -1,4 +1,4 @@
-/* Lemonade (LMND) Dashboard · © 2026 HT. All rights reserved. All data comes from data.js (built by build_data.py from the research workbook). */
+/* Lemonade (LMND) Dashboard · © HT All data comes from data.js (built by build_data.py from the research workbook). */
 'use strict';
 const D = window.LMND_DATA, Q = D.meta.quarters, NQ = Q.length, LI = NQ - 1;
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1241,7 +1241,7 @@ function route() {
   if (id === 'metrics') { const sub = location.hash.split('/')[1]; if (sub && mblk().some(b => b[0] === sub)) setTimeout(() => metricsJump(sub, false), 60); }
   if (id === 'risk') { const sub = location.hash.split('/')[1]; if (sub) setTimeout(() => { const el = document.getElementById(sub.startsWith('blk-') ? sub : 'blk-' + sub); if (el) el.scrollIntoView({behavior: route.seen ? 'smooth' : 'auto', block: 'start'}); }, 80); }
   route.seen = 1;
-  document.title = L(`${t[1]} · Lemonade (LMND) Dashboard · © 2026 HT`, `${TABZ[t[0]] || t[1]} · Lemonade (LMND)  · © 2026 HT`);
+  document.title = L(`${t[1]} · Lemonade (LMND) Dashboard · © HT`, `${TABZ[t[0]] || t[1]} · Lemonade (LMND)  · © HT`);
 }
 function buildNav() {
   $('#nav').innerHTML = TABS.filter(([id]) => !NONAV.has(id)).map(([id, l]) => `<a href="#${id}" data-t="${id}" title="${esc(L(l, TABZ[id] || l))}">${esc(L(NAVL[id] || l, NAVZ[id] || l))}</a>`).join('');
@@ -1268,5 +1268,5 @@ function langChrome() {
   const h1 = $('#h1t'); if (h1) h1.textContent = L('Dashboard', '');
 }
 /* ---------------- init ---------------- */
-$('#foot').innerHTML = `© 2026 HT. All rights reserved.`;
+$('#foot').innerHTML = `© HT`;
 langChrome(); buildNav(); applyTheme(false); hero(); route(); addEventListener('hashchange', route);
